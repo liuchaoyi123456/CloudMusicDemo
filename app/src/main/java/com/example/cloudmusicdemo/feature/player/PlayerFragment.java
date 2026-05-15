@@ -21,6 +21,8 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.resource.bitmap.CircleCrop;
+import com.bumptech.glide.request.RequestOptions;
 import com.example.cloudmusicdemo.MainActivity;
 import com.example.cloudmusicdemo.R;
 import com.example.cloudmusicdemo.core.ui.GradientBackgroundView;
@@ -116,6 +118,7 @@ public class PlayerFragment extends Fragment {
                 Glide.with(this)
                     .load(coverUrl)
                     .placeholder(R.drawable.ic_music)
+                    .transform(new CircleCrop())
                     .into(ivPlayerCover);
             }
             

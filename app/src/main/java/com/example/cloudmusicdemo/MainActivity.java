@@ -248,6 +248,9 @@ public class MainActivity extends AppCompatActivity {
                 );
                 currentFragment = playerFragment;
                 
+                // 隐藏底部导航栏
+                bottomNavigationView.setVisibility(View.GONE);
+                
                 // 使用 add 而不是 replace，这样 HomeFragment 不会被销毁
                 getSupportFragmentManager().beginTransaction()
                     .add(R.id.fragmentContainer, playerFragment)
@@ -322,6 +325,13 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 return true;
+            }
+        });
+        
+        // 监听返回栈变化，恢复底部导航栏
+        getSupportFragmentManager().addOnBackStackChangedListener(() -> {
+            if (getSupportFragmentManager().getBackStackEntryCount() == 0) {
+                bottomNavigationView.setVisibility(View.VISIBLE);
             }
         });
     }
