@@ -5,8 +5,12 @@ import android.content.Intent;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Binder;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.util.Log;
+
+import com.example.cloudmusicdemo.data.local.UserDataManager;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -19,6 +23,11 @@ public class MusicPlayerService extends Service{
     private boolean isPreparing = false;
     private boolean isPaused = false;
     
+    private Handler statsHandler;
+    private Runnable statsRunnable;
+    private long playbackStartTime = 0;
+    private UserDataManager userDataManager;
+
     // 播放模式：0=顺序播放，1=随机播放，2=单曲循环
     private int playMode = 0;
     public static final int PLAY_MODE_SEQUENCE = 0;
@@ -47,6 +56,8 @@ public class MusicPlayerService extends Service{
     public void onCreate(){
         super.onCreate();
         initializeMediaPlayer();
+        userDataManager = UserDataManager.getInstance(this);
+        statsHandler = new Handler(Looper.getMainLooper());
     }
     
     private void initializeMediaPlayer() {
@@ -63,18 +74,17 @@ public class MusicPlayerService extends Service{
         isPreparing = false;
         isPaused = false;
         
-        // 设置准备监听器
         mediaPlayer.setOnPreparedListener(mp -> {
             isPreparing = false;
             if (!isPaused) {
                 mp.start();
+                startPlaybackTimer();
                 notifyStateChanged(true);
             } else {
                 notifyStateChanged(false);
             }
         });
         
-        // 设置错误监听器
         mediaPlayer.setOnErrorListener((mp, what, extra) -> {
             Log.e("MusicPlayer", "播放错误: what=" + what + ", extra=" + extra);
             isPreparing = false;
@@ -84,15 +94,16 @@ public class MusicPlayerService extends Service{
             return true;
         });
         
-        // 设置完成监听器
         mediaPlayer.setOnCompletionListener(mp -> {
             isPreparing = false;
             isPaused = false;
+            stopPlaybackTimer();
             
             if (playMode == PLAY_MODE_SINGLE) {
                 if (currentUrl != null && !currentUrl.isEmpty()) {
                     mp.seekTo(0);
                     mp.start();
+                    startPlaybackTimer();
                     notifyStateChanged(true);
                 }
             } else {
@@ -152,6 +163,8 @@ public class MusicPlayerService extends Service{
                 return;
             }
             
+            stopPlaybackTimer();
+            
             isPreparing = true;
             isPaused = false;
             
@@ -176,6 +189,7 @@ public class MusicPlayerService extends Service{
         if(mediaPlayer!=null && mediaPlayer.isPlaying()){
             mediaPlayer.pause();
             isPaused = true;
+            stopPlaybackTimer();
             notifyStateChanged(false);
         }
     }
@@ -184,6 +198,7 @@ public class MusicPlayerService extends Service{
         if(mediaPlayer!=null && !mediaPlayer.isPlaying() && isPaused){
             mediaPlayer.start();
             isPaused = false;
+            startPlaybackTimer();
             notifyStateChanged(true);
         }
     }
@@ -256,7 +271,6 @@ public class MusicPlayerService extends Service{
         }
     }
     
-    // 获取播放模式名称
     private String getPlayModeName() {
         switch (playMode) {
             case PLAY_MODE_SEQUENCE:
@@ -270,9 +284,63 @@ public class MusicPlayerService extends Service{
         }
     }
     
+    private void startPlaybackTimer() {
+        playbackStartTime = System.currentTimeMillis();
+        
+        statsRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (mediaPlayer != null && mediaPlayer.isPlaying() && !isPreparing) {
+                    long currentTime = System.currentTimeMillis();
+                    long elapsedSeconds = (currentTime - playbackStartTime) / 1000;
+                    
+                    if (elapsedSeconds >= 5) {
+                        int minutes = (int) (elapsedSeconds / 60);
+                        if (minutes < 1) {
+                            userDataManager.addListeningTime(1);
+                        } else {
+                            userDataManager.addListeningTime(minutes);
+                        }
+                        playbackStartTime = currentTime;
+                        Log.d("MusicPlayer", "记录听歌时长: " + elapsedSeconds + " 秒");
+                    }
+                    
+                    statsHandler.postDelayed(this, 5000);
+                }
+            }
+        };
+        
+        statsHandler.post(statsRunnable);
+    }
+    
+    private void stopPlaybackTimer() {
+        if (statsRunnable != null) {
+            statsHandler.removeCallbacks(statsRunnable);
+            statsRunnable = null;
+        }
+        
+        if (playbackStartTime > 0) {
+            long currentTime = System.currentTimeMillis();
+            long elapsedSeconds = (currentTime - playbackStartTime) / 1000;
+            
+            if (elapsedSeconds >= 5) {
+                int minutes = (int) (elapsedSeconds / 60);
+                if (minutes < 1) {
+                    userDataManager.addListeningTime(1);
+                } else {
+                    userDataManager.addListeningTime(minutes);
+                }
+                Log.d("MusicPlayer", "停止时记录听歌时长: " + elapsedSeconds + " 秒");
+            }
+            
+            playbackStartTime = 0;
+        }
+    }
+    
     @Override
     public void onDestroy() {
         super.onDestroy();
+        stopPlaybackTimer();
         if(mediaPlayer!=null) {
             mediaPlayer.release();
             mediaPlayer=null;

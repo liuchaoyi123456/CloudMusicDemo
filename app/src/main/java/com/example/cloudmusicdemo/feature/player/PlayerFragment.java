@@ -494,32 +494,64 @@ public class PlayerFragment extends Fragment {
     // 加载歌词
     private void loadLyric(String songId) {
         if (songId == null || songId.isEmpty()) {
+            Log.d("PlayerFragment", "歌曲ID为空，不加载歌词");
             tvLyricCurrent.setText("暂无歌词");
             return;
         }
+        
+        Log.d("PlayerFragment", "开始加载歌词，歌曲ID: " + songId);
         
         NetEaseApi api = RetrofitClient.getApi();
         api.getLyric(songId).enqueue(new Callback<LyricResponse>() {
             @Override
             public void onResponse(Call<LyricResponse> call, Response<LyricResponse> response) {
+                Log.d("PlayerFragment", "歌词响应码: " + response.code());
+                
                 if (response.isSuccessful() && response.body() != null) {
                     LyricResponse lyricResponse = response.body();
                     
                     if (lyricResponse.getLrc() != null && lyricResponse.getLrc().getLyric() != null) {
-                        lyricLines = LyricParser.parseLyric(response.body().getLrc().getLyric());
-                        if (lyricLines != null) {
+                        String lyricText = lyricResponse.getLrc().getLyric();
+                        Log.d("PlayerFragment", "歌词文本长度: " + lyricText.length());
+                        
+                        lyricLines = LyricParser.parseLyric(lyricText);
+                        
+                        if (lyricLines != null && !lyricLines.isEmpty()) {
+                            Log.d("PlayerFragment", "解析到歌词行数: " + lyricLines.size());
                             currentLyricIndex = -1;
+                            
+                            requireActivity().runOnUiThread(() -> {
+                                tvLyricPrevious.setText("");
+                                tvLyricCurrent.setText(lyricLines.get(0).text);
+                                if (lyricLines.size() > 1) {
+                                    tvLyricNext.setText(lyricLines.get(1).text);
+                                } else {
+                                    tvLyricNext.setText("");
+                                }
+                            });
+                        } else {
+                            Log.d("PlayerFragment", "歌词行为空");
+                            requireActivity().runOnUiThread(() -> {
+                                tvLyricCurrent.setText("暂无歌词");
+                            });
                         }
                     } else {
-                        tvLyricCurrent.setText("暂无歌词");
+                        Log.d("PlayerFragment", "歌词对象为空");
+                        requireActivity().runOnUiThread(() -> {
+                            tvLyricCurrent.setText("暂无歌词");
+                        });
                     }
+                } else {
+                    Log.e("PlayerFragment", "歌词响应失败: " + response.code());
                 }
             }
             
             @Override
             public void onFailure(Call<LyricResponse> call, Throwable t) {
                 Log.e("PlayerFragment", "加载歌词失败", t);
-                tvLyricCurrent.setText("歌词加载失败");
+                requireActivity().runOnUiThread(() -> {
+                    tvLyricCurrent.setText("歌词加载失败");
+                });
             }
         });
     }

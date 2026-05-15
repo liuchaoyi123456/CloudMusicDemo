@@ -1,10 +1,12 @@
 package com.example.cloudmusicdemo.feature.home;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.Toast;
 import java.util.List;
 import androidx.annotation.NonNull;
@@ -14,6 +16,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.cloudmusicdemo.MainActivity;
 import com.example.cloudmusicdemo.R;
+import com.example.cloudmusicdemo.data.local.UserDataManager;
 import com.example.cloudmusicdemo.data.model.Music;
 import com.example.cloudmusicdemo.data.remote.NetEaseApi;
 import com.example.cloudmusicdemo.data.remote.RetrofitClient;
@@ -26,6 +29,7 @@ public class HomeFragment extends Fragment {
     private RecyclerView recyclerView;
     private MusicAdapter adapter;
     private MusicRepository repository;
+    private UserDataManager userDataManager;
 
     @Nullable
     @Override
@@ -35,6 +39,8 @@ public class HomeFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
 
         recyclerView = view.findViewById(R.id.recyclerView);
+
+        userDataManager = UserDataManager.getInstance(requireContext());
 
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         adapter = new MusicAdapter(null);
@@ -120,6 +126,8 @@ public class HomeFragment extends Fragment {
                     if (playUrl != null && !playUrl.isEmpty()) {
                         musicPlayerService.play(playUrl);
                         
+                        userDataManager.addToHistory(music);
+                        
                         if (getActivity() instanceof MainActivity) {
                             List<Music> playlist = ((MainActivity) getActivity()).getCurrentPlaylist();
                             ((MainActivity) getActivity()).showPlayControlBar(
@@ -177,6 +185,8 @@ public class HomeFragment extends Fragment {
         }
         
         musicPlayerService.play(playUrl);
+        
+        userDataManager.addToHistory(music);
         
         if (getActivity() instanceof MainActivity) {
             ((MainActivity) getActivity()).showPlayControlBar(

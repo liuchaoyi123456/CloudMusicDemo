@@ -31,6 +31,7 @@ import com.example.cloudmusicdemo.data.remote.NetEaseApi;
 import com.example.cloudmusicdemo.data.remote.RetrofitClient;
 import com.example.cloudmusicdemo.data.remote.SongDetailResponse;
 import com.example.cloudmusicdemo.data.remote.SongUrlResponse;
+import com.example.cloudmusicdemo.data.local.UserDataManager;
 import com.example.cloudmusicdemo.feature.home.HomeFragment;
 import com.example.cloudmusicdemo.feature.mine.MineFragment;
 import com.example.cloudmusicdemo.feature.player.MusicPlayerService;
@@ -49,6 +50,9 @@ public class MainActivity extends AppCompatActivity {
     private SearchFragment searchFragment;
     private MineFragment mineFragment;
     private VoiceAssistantFragment assistantFragment;
+    
+    private Handler refreshHandler = new Handler(Looper.getMainLooper());
+    private Runnable refreshRunnable;
 
     private LinearLayout playControlBar;
     private ImageView ivCurrentCover;
@@ -67,8 +71,9 @@ public class MainActivity extends AppCompatActivity {
     // 保存当前播放列表和索引
     private List<Music> currentPlaylist;
     private int currentSongIndex = -1;
-    // 在类的成员变量部分添加
     private Fragment currentFragment;
+    
+    private UserDataManager userDataManager;
 
     private Handler progressHandler = new Handler(Looper.getMainLooper());
     private Runnable progressRunnable;
@@ -81,6 +86,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        userDataManager = UserDataManager.getInstance(this);
+        
         initViews();
         checkPermissions();
 
@@ -226,12 +233,12 @@ public class MainActivity extends AppCompatActivity {
             // 添加监听器（不会覆盖其他监听器）
             musicPlayerService.addOnPlaybackStateChangeListener(playbackStateListener);
 
-            // 同步当前播放状态
             isPlaying = musicPlayerService.isPlaying();
             updatePlayPauseIcon();
 
-            // 开始更新播放栏进度
             startPlayBarProgressUpdate();
+            
+            startMineFragmentRefresh();
         }
 
         @Override
@@ -243,6 +250,7 @@ public class MainActivity extends AppCompatActivity {
             musicPlayerService = null;
             isServiceBound = false;
             stopPlayBarProgressUpdate();
+            stopMineFragmentRefresh();
         }
     };
 
@@ -387,13 +395,14 @@ public class MainActivity extends AppCompatActivity {
                 .into(ivCurrentCover);
         }
 
-        // 记录当前Fragment类型
         String fragmentType = currentFragment != null ? currentFragment.getClass().getSimpleName() : "null";
         Log.d("MainActivity", "showPlayControlBar - currentFragment: " + fragmentType);
 
-        // 如果当前显示的是PlayerFragment，不显示播放栏
         if (currentFragment != null && currentFragment instanceof PlayerFragment) {
             Log.d("MainActivity", "当前在PlayerFragment页面，不显示播放栏");
+            playControlBar.setVisibility(View.GONE);
+        } else if (currentFragment != null && (currentFragment instanceof MineFragment || currentFragment instanceof SearchFragment)) {
+            Log.d("MainActivity", "当前在MineFragment或SearchFragment页面，不显示播放栏");
             playControlBar.setVisibility(View.GONE);
         } else {
             playControlBar.setVisibility(View.VISIBLE);
@@ -926,6 +935,9 @@ public class MainActivity extends AppCompatActivity {
                                         // 播放歌曲
                                         musicPlayerService.play(playUrl);
                                         
+                                        // 添加到播放历史
+                                        userDataManager.addToHistory(music);
+                                        
                                         // 更新播放栏（会使用正确的封面URL）
                                         showPlayControlBar(
                                             music.getName(),
@@ -1058,6 +1070,25 @@ public class MainActivity extends AppCompatActivity {
         notifyPlayerFragmentUpdate();
         
         Toast.makeText(this, "正在播放: " + songName, Toast.LENGTH_SHORT).show();
+    }
+    
+    private void startMineFragmentRefresh() {
+        refreshRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (mineFragment != null && mineFragment.isAdded()) {
+                    mineFragment.refreshStatistics();
+                }
+                refreshHandler.postDelayed(this, 5000);
+            }
+        };
+        refreshHandler.post(refreshRunnable);
+    }
+    
+    private void stopMineFragmentRefresh() {
+        if (refreshRunnable != null) {
+            refreshHandler.removeCallbacks(refreshRunnable);
+        }
     }
 
 }
