@@ -27,6 +27,10 @@ import androidx.fragment.app.Fragment;
 
 import com.bumptech.glide.Glide;
 import com.example.cloudmusicdemo.data.model.Music;
+import com.example.cloudmusicdemo.data.remote.NetEaseApi;
+import com.example.cloudmusicdemo.data.remote.RetrofitClient;
+import com.example.cloudmusicdemo.data.remote.SongDetailResponse;
+import com.example.cloudmusicdemo.data.remote.SongUrlResponse;
 import com.example.cloudmusicdemo.feature.home.HomeFragment;
 import com.example.cloudmusicdemo.feature.mine.MineFragment;
 import com.example.cloudmusicdemo.feature.player.MusicPlayerService;
@@ -167,6 +171,11 @@ public class MainActivity extends AppCompatActivity {
                             homeFragment.updatePlayingState(playing, currentSongIndex);
                         }
 
+                        // 通知SearchFragment更新列表中的图标
+                        if (searchFragment != null) {
+                            searchFragment.updatePlayingState(currentSongIndex, playing);
+                        }
+
                         Log.d("MainActivity", "播放状态变化: " + (playing ? "播放中" : "已暂停"));
                     });
                 }
@@ -259,10 +268,16 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // 播放/暂停按钮点击
+        // 播放/暂停按钮点击 - 阻止事件冒泡
         ivPlayPause.setOnClickListener(v -> {
             togglePlayPause();
+            // 阻止事件传播到父容器
+            v.getParent().requestDisallowInterceptTouchEvent(false);
         });
+        
+        // 确保播放按钮可以独立点击
+        ivPlayPause.setFocusable(true);
+        ivPlayPause.setClickable(true);
 
         // 播放栏进度条拖动
         playBarSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -387,10 +402,15 @@ public class MainActivity extends AppCompatActivity {
 
         if (isPlaying) {
             musicPlayerService.pause();
+            // 立即更新UI，不等待监听器回调
+            isPlaying = false;
+            updatePlayPauseIcon();
         } else {
             musicPlayerService.resume();
+            // 立即更新UI，不等待监听器回调
+            isPlaying = true;
+            updatePlayPauseIcon();
         }
-        // 状态会通过监听器自动更新
     }
 
     // 更新播放/暂停图标
@@ -437,9 +457,11 @@ public class MainActivity extends AppCompatActivity {
         if (currentSongIndex < currentPlaylist.size() - 1) {
             currentSongIndex++;
             Log.d("MainActivity", "切换到下一首，索引: " + currentSongIndex);
-            if (homeFragment != null) {
-                homeFragment.playMusicByIndex(currentSongIndex);
-            }
+            
+            // 直接从当前播放列表获取歌曲并播放
+            Music nextMusic = currentPlaylist.get(currentSongIndex);
+            playMusicFromCurrentPlaylist(nextMusic, currentSongIndex);
+            
             // 通知更新
             notifyPlaybackStateChanged();
             // 通知PlayerFragment更新UI
@@ -465,13 +487,152 @@ public class MainActivity extends AppCompatActivity {
 
         currentSongIndex--;
         Log.d("MainActivity", "切换到上一首，索引: " + currentSongIndex);
-        if (homeFragment != null) {
-            homeFragment.playMusicByIndex(currentSongIndex);
-        }
+        
+        // 直接从当前播放列表获取歌曲并播放
+        Music prevMusic = currentPlaylist.get(currentSongIndex);
+        playMusicFromCurrentPlaylist(prevMusic, currentSongIndex);
+        
         // 通知更新
         notifyPlaybackStateChanged();
         // 通知PlayerFragment更新UI
         notifyPlayerFragmentUpdate();
+    }
+    
+    // 从当前播放列表播放歌曲（通用方法）
+    private void playMusicFromCurrentPlaylist(Music music, int index) {
+        Log.d("MainActivity", "playMusicFromCurrentPlaylist: " + music.getName());
+        
+        if (!isServiceBound || musicPlayerService == null) {
+            Toast.makeText(this, "播放器服务未连接", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // 更新当前歌曲信息
+        this.currentSongName = music.getName();
+        this.currentArtist = music.getArtist();
+        this.currentCoverUrl = music.getCoverUrl();
+        
+        NetEaseApi api = RetrofitClient.getApi();
+        
+        // 先获取歌曲详情（包含正确的封面URL）
+        api.getSongDetail(music.getId()).enqueue(new retrofit2.Callback<SongDetailResponse>() {
+            @Override
+            public void onResponse(retrofit2.Call<SongDetailResponse> call, retrofit2.Response<SongDetailResponse> response) {
+                String correctCoverUrl = music.getCoverUrl();
+                
+                if (response.isSuccessful() && response.body() != null && 
+                    response.body().getSongs() != null && !response.body().getSongs().isEmpty()) {
+                    SongDetailResponse.Song songDetail = response.body().getSongs().get(0);
+                    if (songDetail.getAl() != null && songDetail.getAl().getPicUrl() != null) {
+                        correctCoverUrl = songDetail.getAl().getPicUrl();
+                        Log.d("MainActivity", "从详情接口获取到正确封面URL: " + correctCoverUrl);
+                    }
+                }
+                
+                final String finalCoverUrl = correctCoverUrl;
+                
+                // 获取播放URL
+                api.getSongUrl(music.getId(), 320000).enqueue(new retrofit2.Callback<SongUrlResponse>() {
+                    @Override
+                    public void onResponse(retrofit2.Call<SongUrlResponse> call, retrofit2.Response<SongUrlResponse> response) {
+                        if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
+                            SongUrlResponse.SongData songData = response.body().getData().get(0);
+                            String playUrl = songData.getUrl();
+                            
+                            if (playUrl != null && !playUrl.isEmpty()) {
+                                runOnUiThread(() -> {
+                                    // 更新封面URL
+                                    MainActivity.this.currentCoverUrl = finalCoverUrl;
+                                    
+                                    // 播放歌曲
+                                    musicPlayerService.play(playUrl);
+                                    
+                                    // 更新播放栏
+                                    showPlayControlBar(
+                                        music.getName(),
+                                        music.getArtist(),
+                                        finalCoverUrl,
+                                        currentPlaylist,
+                                        index
+                                    );
+                                    
+                                    // 通知搜索页面更新播放状态
+                                    if (searchFragment != null) {
+                                        searchFragment.updatePlayingState(index, true);
+                                    }
+                                    
+                                    // 通知首页更新播放状态
+                                    if (homeFragment != null) {
+                                        homeFragment.updatePlayingState(true, index);
+                                    }
+                                    
+                                    // 通知PlayerFragment更新UI
+                                    notifyPlayerFragmentUpdate();
+                                    
+                                    Toast.makeText(MainActivity.this, "正在播放: " + music.getName(), Toast.LENGTH_SHORT).show();
+                                });
+                            } else {
+                                runOnUiThread(() -> {
+                                    Toast.makeText(MainActivity.this, "无法获取播放链接", Toast.LENGTH_SHORT).show();
+                                });
+                            }
+                        }
+                    }
+                    
+                    @Override
+                    public void onFailure(retrofit2.Call<SongUrlResponse> call, Throwable t) {
+                        runOnUiThread(() -> {
+                            Toast.makeText(MainActivity.this, "获取播放链接失败: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                });
+            }
+            
+            @Override
+            public void onFailure(retrofit2.Call<SongDetailResponse> call, Throwable t) {
+                Log.e("MainActivity", "获取歌曲详情失败，使用原始封面URL", t);
+                // 即使失败也继续获取播放URL
+                api.getSongUrl(music.getId(), 320000).enqueue(new retrofit2.Callback<SongUrlResponse>() {
+                    @Override
+                    public void onResponse(retrofit2.Call<SongUrlResponse> call, retrofit2.Response<SongUrlResponse> response) {
+                        if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
+                            SongUrlResponse.SongData songData = response.body().getData().get(0);
+                            String playUrl = songData.getUrl();
+                            
+                            if (playUrl != null && !playUrl.isEmpty()) {
+                                runOnUiThread(() -> {
+                                    musicPlayerService.play(playUrl);
+                                    showPlayControlBar(
+                                        music.getName(),
+                                        music.getArtist(),
+                                        music.getCoverUrl(),
+                                        currentPlaylist,
+                                        index
+                                    );
+                                    
+                                    if (searchFragment != null) {
+                                        searchFragment.updatePlayingState(index, true);
+                                    }
+                                    if (homeFragment != null) {
+                                        homeFragment.updatePlayingState(true, index);
+                                    }
+                                    notifyPlayerFragmentUpdate();
+                                    
+                                    Toast.makeText(MainActivity.this, "正在播放: " + music.getName(), Toast.LENGTH_SHORT).show();
+                                });
+                            }
+                        }
+                    }
+                    
+                    @Override
+                    public void onFailure(retrofit2.Call<SongUrlResponse> call, Throwable t) {
+                        runOnUiThread(() -> {
+                            Toast.makeText(MainActivity.this, "获取播放链接失败: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                });
+            }
+        });
     }
 
     // 获取当前播放列表
@@ -578,6 +739,194 @@ public class MainActivity extends AppCompatActivity {
             ((PlayerFragment) currentFragment).refreshUI();
             Log.d("MainActivity", "已通知PlayerFragment更新UI");
         }
+    }
+    
+    // 更新当前封面URL（由PlayerFragment调用）
+    public void updateCurrentCoverUrl(String coverUrl) {
+        this.currentCoverUrl = coverUrl;
+        Log.d("MainActivity", "更新currentCoverUrl: " + coverUrl);
+        
+        // 如果播放栏可见，更新播放栏的封面
+        if (playControlBar.getVisibility() == View.VISIBLE) {
+            if (coverUrl != null && !coverUrl.isEmpty()) {
+                Glide.with(this)
+                    .load(coverUrl)
+                    .placeholder(R.drawable.ic_music)
+                    .into(ivCurrentCover);
+            }
+        }
+    }
+
+    // 从搜索结果播放音乐
+    public void playMusicFromSearch(List<Music> playlist, int index) {
+        Log.d("MainActivity", "playMusicFromSearch - 索引: " + index);
+        
+        if (playlist == null || playlist.isEmpty()) {
+            Toast.makeText(this, "播放列表为空", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        if (index < 0 || index >= playlist.size()) {
+            Toast.makeText(this, "无效的歌曲索引", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        Music music = playlist.get(index);
+        
+        Log.d("MainActivity", "播放歌曲: " + music.getName());
+        Log.d("MainActivity", "封面URL: " + music.getCoverUrl());
+        Log.d("MainActivity", "歌曲ID: " + music.getId());
+        
+        // 保存当前播放列表和索引
+        this.currentPlaylist = playlist;
+        this.currentSongIndex = index;
+        this.currentSongName = music.getName();
+        this.currentArtist = music.getArtist();
+        // 先使用传入的封面URL，后续会通过详情接口更新
+        this.currentCoverUrl = music.getCoverUrl();
+        
+        // 获取播放器服务
+        if (!isServiceBound || musicPlayerService == null) {
+            Toast.makeText(this, "播放器服务未连接", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // 先获取歌曲详情（包含正确的封面URL）
+        NetEaseApi api = RetrofitClient.getApi();
+        api.getSongDetail(music.getId()).enqueue(new retrofit2.Callback<SongDetailResponse>() {
+            @Override
+            public void onResponse(retrofit2.Call<SongDetailResponse> call, retrofit2.Response<SongDetailResponse> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().getSongs() != null && !response.body().getSongs().isEmpty()) {
+                    SongDetailResponse.Song songDetail = response.body().getSongs().get(0);
+                    
+                    // 获取正确的封面URL
+                    final String correctCoverUrl;
+                    if (songDetail.getAl() != null && songDetail.getAl().getPicUrl() != null) {
+                        correctCoverUrl = songDetail.getAl().getPicUrl();
+                        Log.d("MainActivity", "从详情接口获取到正确封面URL: " + correctCoverUrl);
+                    } else {
+                        correctCoverUrl = music.getCoverUrl();
+                    }
+                    
+                    // 获取播放URL
+                    api.getSongUrl(music.getId(), 320000).enqueue(new retrofit2.Callback<SongUrlResponse>() {
+                        @Override
+                        public void onResponse(retrofit2.Call<SongUrlResponse> call, retrofit2.Response<SongUrlResponse> response) {
+                            if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
+                                SongUrlResponse.SongData songData = response.body().getData().get(0);
+                                String playUrl = songData.getUrl();
+                                
+                                Log.d("MainActivity", "搜索结果歌曲ID: " + songData.getId());
+                                Log.d("MainActivity", "搜索结果播放URL: " + playUrl);
+                                
+                                if (playUrl != null && !playUrl.isEmpty()) {
+                                    runOnUiThread(() -> {
+                                        // 更新封面URL为正确的URL
+                                        MainActivity.this.currentCoverUrl = correctCoverUrl;
+                                        
+                                        // 播放歌曲
+                                        musicPlayerService.play(playUrl);
+                                        
+                                        // 更新播放栏（会使用正确的封面URL）
+                                        showPlayControlBar(
+                                            music.getName(),
+                                            music.getArtist(),
+                                            correctCoverUrl,
+                                            playlist,
+                                            index
+                                        );
+                                        
+                                        // 通知搜索页面更新播放状态
+                                        if (searchFragment != null) {
+                                            searchFragment.updatePlayingState(index, true);
+                                        }
+                                        if (homeFragment != null) {
+                                            homeFragment.updatePlayingState(true, index);
+                                        }
+                                        
+                                        // 通知PlayerFragment更新UI
+                                        notifyPlayerFragmentUpdate();
+                                        
+                                        Toast.makeText(MainActivity.this, "正在播放: " + music.getName(), Toast.LENGTH_SHORT).show();
+                                    });
+                                } else {
+                                    runOnUiThread(() -> {
+                                        Log.e("MainActivity", "播放URL为空");
+                                        Toast.makeText(MainActivity.this, "无法获取播放链接", Toast.LENGTH_SHORT).show();
+                                    });
+                                }
+                            }
+                        }
+                        
+                        @Override
+                        public void onFailure(retrofit2.Call<SongUrlResponse> call, Throwable t) {
+                            runOnUiThread(() -> {
+                                Log.e("MainActivity", "获取播放链接失败", t);
+                                Toast.makeText(MainActivity.this, "获取播放链接失败: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                    });
+                } else {
+                    // 如果详情接口失败，直接使用原来的URL
+                    Log.w("MainActivity", "获取歌曲详情失败，使用原始封面URL");
+                    getSongUrlAndPlay(api, music, playlist, index);
+                }
+            }
+            
+            @Override
+            public void onFailure(retrofit2.Call<SongDetailResponse> call, Throwable t) {
+                Log.e("MainActivity", "获取歌曲详情失败", t);
+                // 失败时使用原始URL
+                getSongUrlAndPlay(api, music, playlist, index);
+            }
+        });
+    }
+    
+    // 提取的公共方法：获取播放URL并播放
+    private void getSongUrlAndPlay(NetEaseApi api, Music music, List<Music> playlist, int index) {
+        api.getSongUrl(music.getId(), 320000).enqueue(new retrofit2.Callback<SongUrlResponse>() {
+            @Override
+            public void onResponse(retrofit2.Call<SongUrlResponse> call, retrofit2.Response<SongUrlResponse> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
+                    SongUrlResponse.SongData songData = response.body().getData().get(0);
+                    String playUrl = songData.getUrl();
+                    
+                    if (playUrl != null && !playUrl.isEmpty()) {
+                        runOnUiThread(() -> {
+                            musicPlayerService.play(playUrl);
+                            showPlayControlBar(
+                                music.getName(),
+                                music.getArtist(),
+                                music.getCoverUrl(),
+                                playlist,
+                                index
+                            );
+                            
+                            if (currentFragment instanceof SearchFragment) {
+                                ((SearchFragment) currentFragment).updatePlayingState(index, true);
+                            }
+                            if (homeFragment != null) {
+                                homeFragment.updatePlayingState(true, index);
+                            }
+                            notifyPlayerFragmentUpdate();
+                            
+                            Toast.makeText(MainActivity.this, "正在播放: " + music.getName(), Toast.LENGTH_SHORT).show();
+                        });
+                    } else {
+                        runOnUiThread(() -> {
+                            Toast.makeText(MainActivity.this, "无法获取播放链接", Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                }
+            }
+            
+            @Override
+            public void onFailure(retrofit2.Call<SongUrlResponse> call, Throwable t) {
+                runOnUiThread(() -> {
+                    Toast.makeText(MainActivity.this, "获取播放链接失败: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
     }
 
 }

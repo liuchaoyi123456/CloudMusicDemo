@@ -2,7 +2,8 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:background="#FFFFFF">
 
     <!-- 状态栏占位 -->
     <View
@@ -10,43 +11,72 @@
         android:layout_height="24dp"
         android:background="#FF2C55" />
 
+    <!-- 顶部搜索栏 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="56dp"
         android:background="#FF2C55"
         android:gravity="center_vertical"
-        android:paddingLeft="16dp"
-        android:paddingRight="16dp">
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:orientation="horizontal">
 
-        <TextView
+        <!-- 搜索框 -->
+        <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="36dp"
             android:layout_weight="1"
+            android:layout_marginEnd="12dp"
+            android:background="@drawable/bg_search_box"
+            android:gravity="center_vertical"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_search"
+                android:tint="#999999" />
+
+            <EditText
+                android:id="@+id/etSearchInput"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:background="@null"
+                android:hint="搜索歌曲、歌手"
+                android:textColor="#333333"
+                android:textColorHint="#CCCCCC"
+                android:textSize="14sp"
+                android:maxLines="1"
+                android:imeOptions="actionSearch" />
+        </LinearLayout>
+
+        <!-- 搜索按钮 -->
+        <TextView
+            android:id="@+id/btnSearch"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
             android:text="搜索"
             android:textColor="#FFFFFF"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-
-        <!-- 语音助手按钮 -->
-        <ImageView
-            android:id="@+id/ivVoiceAssistant"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:src="@android:drawable/ic_btn_speak_now"
-            android:contentDescription="语音助手"
-            android:padding="6dp"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:background="?attr/selectableItemBackground"
             android:clickable="true"
-            android:focusable="true"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:tint="#FFFFFF" />
+            android:focusable="true" />
     </LinearLayout>
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="搜索功能开发中..."
-        android:textSize="16sp"
-        android:layout_gravity="center"
-        android:layout_marginTop="32dp" />
+    <!-- 搜索结果列表 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvSearchResults"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp" />
 
 </LinearLayout>

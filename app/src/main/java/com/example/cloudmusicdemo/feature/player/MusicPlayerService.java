@@ -167,7 +167,7 @@ public class MusicPlayerService extends Service{
     }
     
     public void pause() {
-        if(mediaPlayer!=null && mediaPlayer.isPlaying() && !isPreparing){
+        if(mediaPlayer!=null && mediaPlayer.isPlaying()){
             mediaPlayer.pause();
             isPaused = true;
             Log.d("MusicPlayer", "暂停");
@@ -176,7 +176,7 @@ public class MusicPlayerService extends Service{
     }
     
     public void resume() {
-        if(mediaPlayer!=null && !mediaPlayer.isPlaying() && !isPreparing && isPaused){
+        if(mediaPlayer!=null && !mediaPlayer.isPlaying() && isPaused){
             mediaPlayer.start();
             isPaused = false;
             Log.d("MusicPlayer", "继续播放");
@@ -185,7 +185,7 @@ public class MusicPlayerService extends Service{
     }
     
     public boolean isPlaying() {
-        return mediaPlayer!=null && mediaPlayer.isPlaying() && !isPreparing;
+        return mediaPlayer!=null && mediaPlayer.isPlaying();
     }
     
     public int getCurrentPosition() {

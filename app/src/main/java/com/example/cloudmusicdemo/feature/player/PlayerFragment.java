@@ -31,6 +31,7 @@ import com.example.cloudmusicdemo.data.model.Music;
 import com.example.cloudmusicdemo.data.remote.LyricResponse;
 import com.example.cloudmusicdemo.data.remote.NetEaseApi;
 import com.example.cloudmusicdemo.data.remote.RetrofitClient;
+import com.example.cloudmusicdemo.data.remote.SongDetailResponse;
 
 import java.util.List;
 
@@ -498,9 +499,72 @@ public class PlayerFragment extends Fragment {
     // 刷新UI（由MainActivity调用）
     public void refreshUI() {
         Log.d("PlayerFragment", "refreshUI 被调用");
-        // 确保播放栏保持隐藏
+        
         if (getActivity() instanceof MainActivity) {
-            ((MainActivity) getActivity()).hidePlayControlBar();
+            final MainActivity mainActivity = (MainActivity) getActivity();
+            mainActivity.hidePlayControlBar();
+            
+            int currentIndex = mainActivity.getCurrentSongIndex();
+            List<Music> playlist = mainActivity.getCurrentPlaylist();
+            
+            if (playlist != null && currentIndex >= 0 && currentIndex < playlist.size()) {
+                final Music currentMusic = playlist.get(currentIndex);
+                
+                Log.d("PlayerFragment", "刷新UI - 歌曲: " + currentMusic.getName());
+                
+                tvPlayerSongName.setText(currentMusic.getName());
+                tvPlayerArtist.setText(currentMusic.getArtist());
+                
+                NetEaseApi api = RetrofitClient.getApi();
+                api.getSongDetail(currentMusic.getId()).enqueue(new Callback<SongDetailResponse>() {
+                    @Override
+                    public void onResponse(Call<SongDetailResponse> call, Response<SongDetailResponse> response) {
+                        String correctCoverUrl = currentMusic.getCoverUrl();
+                        
+                        if (response.isSuccessful() && response.body() != null && 
+                            response.body().getSongs() != null && !response.body().getSongs().isEmpty()) {
+                            SongDetailResponse.Song songDetail = response.body().getSongs().get(0);
+                            if (songDetail.getAl() != null && songDetail.getAl().getPicUrl() != null) {
+                                correctCoverUrl = songDetail.getAl().getPicUrl();
+                                Log.d("PlayerFragment", "从详情接口获取到正确封面URL: " + correctCoverUrl);
+                            }
+                        }
+                        
+                        final String finalCoverUrl = correctCoverUrl;
+                        requireActivity().runOnUiThread(() -> {
+                            mainActivity.updateCurrentCoverUrl(finalCoverUrl);
+                            
+                            if (finalCoverUrl != null && !finalCoverUrl.isEmpty()) {
+                                Glide.with(PlayerFragment.this)
+                                    .load(finalCoverUrl)
+                                    .placeholder(R.drawable.ic_music)
+                                    .transform(new CircleCrop())
+                                    .into(ivPlayerCover);
+                            }
+                        });
+                    }
+                    
+                    @Override
+                    public void onFailure(Call<SongDetailResponse> call, Throwable t) {
+                        Log.e("PlayerFragment", "获取歌曲详情失败", t);
+                        final String coverToLoad = currentMusic.getCoverUrl();
+                        requireActivity().runOnUiThread(() -> {
+                            if (coverToLoad != null && !coverToLoad.isEmpty()) {
+                                Glide.with(PlayerFragment.this)
+                                    .load(coverToLoad)
+                                    .placeholder(R.drawable.ic_music)
+                                    .transform(new CircleCrop())
+                                    .into(ivPlayerCover);
+                            }
+                        });
+                    }
+                });
+                
+                loadLyric(currentMusic.getId());
+                currentLyricIndex = -1;
+                
+                Log.d("PlayerFragment", "UI已更新为: " + currentMusic.getName());
+            }
         }
     }
 }
