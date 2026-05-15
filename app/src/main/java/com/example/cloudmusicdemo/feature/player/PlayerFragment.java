@@ -23,6 +23,7 @@ import androidx.fragment.app.Fragment;
 import com.bumptech.glide.Glide;
 import com.example.cloudmusicdemo.MainActivity;
 import com.example.cloudmusicdemo.R;
+import com.example.cloudmusicdemo.core.ui.GradientBackgroundView;
 import com.example.cloudmusicdemo.core.util.LyricParser;
 import com.example.cloudmusicdemo.data.model.Music;
 import com.example.cloudmusicdemo.data.remote.LyricResponse;
@@ -45,7 +46,9 @@ public class PlayerFragment extends Fragment {
     private ImageView ivPlayerCover;
     private TextView tvPlayerSongName;
     private TextView tvPlayerArtist;
-    private TextView tvPlayerLyric; // 新增：歌词显示
+    private TextView tvLyricPrevious; // 上一句歌词
+    private TextView tvLyricCurrent;  // 当前歌词
+    private TextView tvLyricNext;     // 下一句歌词
     private SeekBar seekBar;
     private TextView tvCurrentTime;
     private TextView tvTotalTime;
@@ -94,6 +97,12 @@ public class PlayerFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_player, container, false);
         initViews(view);
         
+        // 启动背景动画
+        GradientBackgroundView gradientBackground = view.findViewById(R.id.gradientBackground);
+        if (gradientBackground != null) {
+            gradientBackground.startAnimation();
+        }
+        
         if (getArguments() != null) {
             String songId = getArguments().getString(ARG_SONG_ID, "");
             String songName = getArguments().getString(ARG_SONG_NAME, "");
@@ -128,7 +137,9 @@ public class PlayerFragment extends Fragment {
         ivPlayerCover = view.findViewById(R.id.ivPlayerCover);
         tvPlayerSongName = view.findViewById(R.id.tvPlayerSongName);
         tvPlayerArtist = view.findViewById(R.id.tvPlayerArtist);
-        tvPlayerLyric = view.findViewById(R.id.tvPlayerLyric);
+        tvLyricPrevious = view.findViewById(R.id.tvLyricPrevious);
+        tvLyricCurrent = view.findViewById(R.id.tvLyricCurrent);
+        tvLyricNext = view.findViewById(R.id.tvLyricNext);
         seekBar = view.findViewById(R.id.seekBar);
         tvCurrentTime = view.findViewById(R.id.tvCurrentTime);
         tvTotalTime = view.findViewById(R.id.tvTotalTime);
@@ -137,7 +148,7 @@ public class PlayerFragment extends Fragment {
         ivPlayerNext = view.findViewById(R.id.ivPlayerNext);
         
         // 设置默认歌词
-        tvPlayerLyric.setText("暂无歌词");
+        tvLyricCurrent.setText("暂无歌词");
         
         // 播放/暂停按钮
         ivPlayerPlayPause.setOnClickListener(v -> {
@@ -335,12 +346,32 @@ public class PlayerFragment extends Fragment {
         
         if (newIndex != currentLyricIndex && newIndex >= 0) {
             currentLyricIndex = newIndex;
-            String currentLyric = lyricLines.get(newIndex).text;
             
-            if (tvPlayerLyric != null) {
-                tvPlayerLyric.setText(currentLyric);
-                Log.d("PlayerFragment", "歌词[" + newIndex + "]: " + currentLyric);
+            // 获取当前、上一句、下一句歌词
+            String previousLyric = "";
+            String currentLyric = lyricLines.get(newIndex).text;
+            String nextLyric = "";
+            
+            if (newIndex > 0) {
+                previousLyric = lyricLines.get(newIndex - 1).text;
             }
+            
+            if (newIndex < lyricLines.size() - 1) {
+                nextLyric = lyricLines.get(newIndex + 1).text;
+            }
+            
+            // 更新UI
+            if (tvLyricPrevious != null) {
+                tvLyricPrevious.setText(previousLyric);
+            }
+            if (tvLyricCurrent != null) {
+                tvLyricCurrent.setText(currentLyric);
+            }
+            if (tvLyricNext != null) {
+                tvLyricNext.setText(nextLyric);
+            }
+            
+            Log.d("PlayerFragment", "歌词[" + newIndex + "]: " + currentLyric);
         }
     }
 
@@ -415,7 +446,7 @@ public class PlayerFragment extends Fragment {
     // 加载歌词
     private void loadLyric(String songId) {
         if (songId == null || songId.isEmpty()) {
-            tvPlayerLyric.setText("暂无歌词");
+            tvLyricCurrent.setText("暂无歌词");
             return;
         }
         
@@ -426,18 +457,29 @@ public class PlayerFragment extends Fragment {
                 if (response.isSuccessful() && response.body() != null) {
                     LyricResponse lyricResponse = response.body();
                     
-                    if (lyricResponse.getLrc() != null) {
-                        String lyricText = lyricResponse.getLrc();
+                    if (lyricResponse.getLrc() != null && lyricResponse.getLrc().getLyric() != null) {
+                        String lyricText = lyricResponse.getLrc().getLyric();
                         lyricLines = LyricParser.parseLyric(lyricText);
                         
                         if (lyricLines != null && !lyricLines.isEmpty()) {
                             Log.d("PlayerFragment", "歌词加载成功，共" + lyricLines.size() + "行");
-                            tvPlayerLyric.setText(lyricLines.get(0).text);
+                            // 显示第一句歌词
+                            tvLyricCurrent.setText(lyricLines.get(0).text);
+                            tvLyricPrevious.setText("");
+                            if (lyricLines.size() > 1) {
+                                tvLyricNext.setText(lyricLines.get(1).text);
+                            } else {
+                                tvLyricNext.setText("");
+                            }
                         } else {
-                            tvPlayerLyric.setText("纯音乐，请欣赏");
+                            tvLyricCurrent.setText("纯音乐，请欣赏");
+                            tvLyricPrevious.setText("");
+                            tvLyricNext.setText("");
                         }
                     } else {
-                        tvPlayerLyric.setText("暂无歌词");
+                        tvLyricCurrent.setText("暂无歌词");
+                        tvLyricPrevious.setText("");
+                        tvLyricNext.setText("");
                     }
                 }
             }
@@ -445,7 +487,7 @@ public class PlayerFragment extends Fragment {
             @Override
             public void onFailure(Call<LyricResponse> call, Throwable t) {
                 Log.e("PlayerFragment", "加载歌词失败", t);
-                tvPlayerLyric.setText("歌词加载失败");
+                tvLyricCurrent.setText("歌词加载失败");
             }
         });
     }

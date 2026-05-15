@@ -239,9 +239,12 @@ public class MainActivity extends AppCompatActivity {
 
         // 播放栏点击 - 跳转到播放界面
         playControlBar.setOnClickListener(v -> {
-            if (!currentSongName.isEmpty()) {
+            if (!currentSongName.isEmpty() && currentPlaylist != null && currentSongIndex >= 0) {
+                // 获取当前歌曲的ID
+                String songId = currentPlaylist.get(currentSongIndex).getId();
+                
                 PlayerFragment playerFragment = PlayerFragment.newInstance(
-                    currentSongName, currentArtist, currentCoverUrl
+                    songId, currentSongName, currentArtist, currentCoverUrl
                 );
                 currentFragment = playerFragment;
                 

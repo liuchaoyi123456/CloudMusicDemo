@@ -2,17 +2,17 @@ package com.example.cloudmusicdemo.data.remote;
 
 public class LyricResponse {
     private int code;
-    private String lrc;
-    private String tlyric;
+    private Lrc lrc;
+    private Lrc tlyric;
 
     public int getCode() { return code; }
     public void setCode(int code) { this.code = code; }
 
-    public String getLrc() { return lrc; }
-    public void setLrc(String lrc) { this.lrc = lrc; }
+    public Lrc getLrc() { return lrc; }
+    public void setLrc(Lrc lrc) { this.lrc = lrc; }
 
-    public String getTlyric() { return tlyric; }
-    public void setTlyric(String tlyric) { this.tlyric = tlyric; }
+    public Lrc getTlyric() { return tlyric; }
+    public void setTlyric(Lrc tlyric) { this.tlyric = tlyric; }
 
     public static class Lrc {
         private String lyric;
