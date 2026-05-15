@@ -2,41 +2,41 @@ package com.example.cloudmusicdemo.data.remote;
 
 import java.util.List;
 
-public class SongDetailResponse {
+public class PlaylistDetailResponse {
     private int code;
-    private List<Song> songs;
+    private Playlist playlist;
 
     public int getCode() { return code; }
-    public List<Song> getSongs() { return songs; }
+    public Playlist getPlaylist() { return playlist; }
 
-    public static class Song {
+    public static class Playlist {
+        private List<Track> tracks;
+
+        public List<Track> getTracks() { return tracks; }
+    }
+
+    public static class Track {
         private long id;
         private String name;
-        private String mp3Url;
         private List<Artist> ar;
         private Album al;
 
         public long getId() { return id; }
         public String getName() { return name; }
-        public String getMp3Url() { return mp3Url; }
         public List<Artist> getAr() { return ar; }
         public Album getAl() { return al; }
     }
 
     public static class Artist {
-        private long id;
         private String name;
 
-        public long getId() { return id; }
         public String getName() { return name; }
     }
 
     public static class Album {
-        private long id;
         private String name;
         private String picUrl;
 
-        public long getId() { return id; }
         public String getName() { return name; }
         public String getPicUrl() { return picUrl; }
     }

@@ -16,27 +16,6 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    dependencies {
-        implementation("com.squareup.retrofit2:retrofit:2.9.0")
-        // Gson 解析器
-        implementation("com.squareup.retrofit2:converter-gson:2.9.0")
-        // OkHttp 网络客户端
-        implementation("com.squareup.okhttp3:okhttp:4.10.0")
-        // Glide 图片加载库
-        implementation("com.squareup.okhttp3:logging-interceptor:4.10.0")
-        implementation("com.github.bumptech.glide:glide:4.16.0")
-        annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
-        // RecyclerView
-        implementation("androidx.recyclerview:recyclerview:1.3.2")
-        implementation(libs.appcompat)
-        implementation(libs.material)
-        implementation(libs.activity)
-        implementation(libs.constraintlayout)
-        testImplementation(libs.junit)
-        androidTestImplementation(libs.ext.junit)
-        androidTestImplementation(libs.espresso.core)
-    }
-
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -50,5 +29,33 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+}
+
+dependencies {
+    // Retrofit
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    
+    // OkHttp
+    implementation("com.squareup.okhttp3:okhttp:4.10.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.10.0")
+    
+    // Glide
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+    annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
+    
+    // RecyclerView
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
+    
+    // AndroidX
+    implementation(libs.appcompat)
+    implementation(libs.material)
+    implementation(libs.activity)
+    implementation(libs.constraintlayout)
+    
+    // Testing
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.ext.junit)
+    androidTestImplementation(libs.espresso.core)
 }
 

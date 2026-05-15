@@ -3,78 +3,75 @@ package com.example.cloudmusicdemo.data.repository;
 import com.example.cloudmusicdemo.data.model.Music;
 import com.example.cloudmusicdemo.data.remote.NetEaseApi;
 import com.example.cloudmusicdemo.data.remote.RetrofitClient;
-import com.example.cloudmusicdemo.data.remote.RecommendResponse;
-import com.example.cloudmusicdemo.data.remote.HotResponse;
+import com.example.cloudmusicdemo.data.remote.PlaylistDetailResponse;
 import android.util.Log;
 import java.util.ArrayList;
 import java.util.List;
 
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
-
-public class MusicRepositoryImpl implements MusicRepository{
+public class MusicRepositoryImpl implements MusicRepository {
     private NetEaseApi api;
+
     public MusicRepositoryImpl() {
-        api=RetrofitClient.getApi();
+        api = RetrofitClient.getApi();
     }
+
     @Override
-    public void getRecommendMusic(Callback<List<Music>> callback){
-        // 使用热门歌曲API（不需要登录）
-        api.getHotSongs("3778678").enqueue(new retrofit2.Callback<HotResponse>(){
+    public void getRecommendMusic(final Callback<List<Music>> callback) {
+        Log.d("CloudMusic", "开始获取热歌榜...");
+        
+        // 直接使用热歌榜歌单ID
+        api.getPlaylistDetail("3778678").enqueue(new retrofit2.Callback<PlaylistDetailResponse>() {
             @Override
-            public void onResponse(Call<HotResponse> call, Response<HotResponse> response){
-                Log.d("CloudMusic","onResponse: "+response);
-                Log.d("CloudMusic","isSuccessful: "+response.isSuccessful());
-                Log.d("CloudMusic","body: "+response.body());
-                if(response.isSuccessful()&&response.body()!=null){
-                    Log.d("CloudMusic","code: "+response.body().getCode());
-                    Log.d("CloudMusic","playlist: "+response.body().getResult());
-                    if(response.body().getResult()!=null){
-                        Log.d("CloudMusic","tracks: "+response.body().getResult().getTracks());
-                        if(response.body().getResult().getTracks()!=null){
-                            Log.d("CloudMusic","tracks size: "+response.body().getResult().getTracks().size());
-                        }
-                    }
-                    List<Music> musicList = parseHotMusicList(response.body());
+            public void onResponse(retrofit2.Call<PlaylistDetailResponse> call, retrofit2.Response<PlaylistDetailResponse> response) {
+                Log.d("CloudMusic", "响应码: " + response.code());
+                
+                if (response.isSuccessful() && response.body() != null) {
+                    List<Music> musicList = parsePlaylist(response.body());
+                    Log.d("CloudMusic", "解析到歌曲数量: " + musicList.size());
                     callback.onSuccess(musicList);
-                }else{
-                    callback.onError(new Exception("请求失败"));
+                } else {
+                    Log.e("CloudMusic", "获取失败，响应码: " + response.code());
+                    callback.onError(new Exception("获取失败: " + response.code()));
                 }
             }
+
             @Override
-            public void onFailure(Call<HotResponse> call,Throwable t){
-                Log.d("CloudMusic","onFailure: "+t.getMessage());
+            public void onFailure(retrofit2.Call<PlaylistDetailResponse> call, Throwable t) {
+                Log.e("CloudMusic", "网络请求失败", t);
                 callback.onError(t);
             }
         });
     }
-    @Override
-    public void getHotMusic(Callback<List<Music>> callback){
 
-    }
-
-    // 新增：解析热门歌曲
-    private List<Music> parseHotMusicList(HotResponse response){
-        List<Music> musicList=new ArrayList<>();
-        if(response.getResult()!=null&&response.getResult().getTracks()!=null){
-            for(HotResponse.Track song:response.getResult().getTracks()){
-                String artistName="";
-                if(song.getArtists()!=null&&!song.getArtists().isEmpty()){
-                    artistName=song.getArtists().get(0).getName();
+    private List<Music> parsePlaylist(PlaylistDetailResponse response) {
+        List<Music> musicList = new ArrayList<>();
+        if (response.getPlaylist() != null && response.getPlaylist().getTracks() != null) {
+            for (PlaylistDetailResponse.Track track : response.getPlaylist().getTracks()) {
+                String artistName = "";
+                if (track.getAr() != null && !track.getAr().isEmpty()) {
+                    artistName = track.getAr().get(0).getName();
                 }
-                String coverUrl="";
-                if(song.getAlbum()!=null){
-                    coverUrl=song.getAlbum().getPicUrl();
+                String albumName = "";
+                String coverUrl = "";
+                if (track.getAl() != null) {
+                    albumName = track.getAl().getName();
+                    coverUrl = track.getAl().getPicUrl();
                 }
-                String albumName="";
-                if (song.getAlbum()!=null){
-                    albumName=song.getAlbum().getName();
-                }
-                Music music=new Music(String.valueOf(song.getId()),song.getName(),artistName,albumName,coverUrl);
+                Music music = new Music(
+                        String.valueOf(track.getId()),
+                        track.getName(),
+                        artistName,
+                        albumName,
+                        coverUrl
+                );
                 musicList.add(music);
             }
         }
         return musicList;
+    }
+
+    @Override
+    public void getHotMusic(Callback<List<Music>> callback) {
+        getRecommendMusic(callback);
     }
 }

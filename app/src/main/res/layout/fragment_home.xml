@@ -2,9 +2,13 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical">
 
-    android:orientation="vertical"
-    >
+    <!-- 状态栏占位 -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="24dp"
+        android:background="#FF2C55" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -15,62 +19,26 @@
         android:paddingRight="16dp">
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:text="网易云音乐"
             android:textColor="#FFFFFF"
             android:textSize="20sp"
             android:textStyle="bold" />
-    </LinearLayout>
 
-    <LinearLayout
-        android:id="@+id/playControlBar"
-        android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="8dp"
-        android:background="#FFFFFF"
-        android:elevation="4dp">
-
+        <!-- 语音助手按钮 -->
         <ImageView
-            android:id="@+id/ivCurrentCover"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:scaleType="centerCrop" />
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:paddingLeft="12dp">
-
-            <TextView
-                android:id="@+id/tvCurrentSongName"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="未播放"
-                android:textSize="14sp"
-                android:textColor="#333333"
-                android:maxLines="1" />
-
-            <TextView
-                android:id="@+id/tvCurrentArtist"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text=""
-                android:textSize="12sp"
-                android:textColor="#999999"
-                android:maxLines="1" />
-        </LinearLayout>
-
-        <ImageView
-            android:id="@+id/ivPlayPause"
+            android:id="@+id/ivVoiceAssistant"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:src="@drawable/ic_play"
-            android:padding="8dp" />
+            android:src="@android:drawable/ic_btn_speak_now"
+            android:contentDescription="语音助手"
+            android:padding="6dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:tint="#FFFFFF" />
     </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
@@ -78,14 +46,6 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="#F5F5F5">
-
     </androidx.recyclerview.widget.RecyclerView>
-
-    <WebView
-        android:id="@+id/webView"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:visibility="gone" >
-    </WebView>
 
 </LinearLayout>
