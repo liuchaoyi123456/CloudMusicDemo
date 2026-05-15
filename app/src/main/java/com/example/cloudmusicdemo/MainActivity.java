@@ -36,6 +36,8 @@ import com.example.cloudmusicdemo.feature.mine.MineFragment;
 import com.example.cloudmusicdemo.feature.player.MusicPlayerService;
 import com.example.cloudmusicdemo.feature.player.PlayerFragment;
 import com.example.cloudmusicdemo.feature.search.SearchFragment;
+import com.example.cloudmusicdemo.feature.voice.VoiceAssistantActivity;
+import com.example.cloudmusicdemo.feature.voice.VoiceAssistantFragment;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import java.util.List;
@@ -46,6 +48,7 @@ public class MainActivity extends AppCompatActivity {
     private HomeFragment homeFragment;
     private SearchFragment searchFragment;
     private MineFragment mineFragment;
+    private VoiceAssistantFragment assistantFragment;
 
     private LinearLayout playControlBar;
     private ImageView ivCurrentCover;
@@ -196,8 +199,26 @@ public class MainActivity extends AppCompatActivity {
                         Log.d("MainActivity", "歌曲播放完成");
                         isPlaying = false;
                         updatePlayPauseIcon();
-                        // 自动播放下一首
-                        playNextSong();
+                        
+                        // 根据播放模式处理
+                        if (musicPlayerService != null) {
+                            int mode = musicPlayerService.getPlayMode();
+                            Log.d("MainActivity", "播放完成，当前模式: " + mode);
+                            
+                            if (mode == MusicPlayerService.PLAY_MODE_SEQUENCE) {
+                                // 顺序播放：播放下一首
+                                Log.d("MainActivity", "顺序播放模式，播放下一首");
+                                playNextSong();
+                            } else if (mode == MusicPlayerService.PLAY_MODE_RANDOM) {
+                                // 随机播放：随机选择一首
+                                Log.d("MainActivity", "随机播放模式，随机选择");
+                                playRandomSong();
+                            } else if (mode == MusicPlayerService.PLAY_MODE_SINGLE) {
+                                Log.d("MainActivity", "单曲循环模式（不应该到这里）");
+                            }
+                        } else {
+                            Log.e("MainActivity", "musicPlayerService 为 null");
+                        }
                     });
                 }
             };
@@ -239,6 +260,7 @@ public class MainActivity extends AppCompatActivity {
         homeFragment = new HomeFragment();
         searchFragment = new SearchFragment();
         mineFragment = new MineFragment();
+        assistantFragment = new VoiceAssistantFragment();
 
         // 默认显示首页（使用add而不是replace）
         currentFragment = homeFragment;
@@ -305,6 +327,8 @@ public class MainActivity extends AppCompatActivity {
                     selectedFragment = homeFragment;
                 } else if (itemId == R.id.nav_search) {
                     selectedFragment = searchFragment;
+                } else if (itemId == R.id.nav_assistant) {
+                    selectedFragment = assistantFragment;
                 } else if (itemId == R.id.nav_mine) {
                     selectedFragment = mineFragment;
                 }
@@ -312,15 +336,13 @@ public class MainActivity extends AppCompatActivity {
                 if (selectedFragment != null) {
                     currentFragment = selectedFragment;
 
-                    // 使用 hide/show 而不是 replace，保持Fragment状态
                     androidx.fragment.app.FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
 
-                    // 隐藏所有Fragment
                     if (homeFragment.isAdded()) transaction.hide(homeFragment);
                     if (searchFragment.isAdded()) transaction.hide(searchFragment);
+                    if (assistantFragment.isAdded()) transaction.hide(assistantFragment);
                     if (mineFragment.isAdded()) transaction.hide(mineFragment);
 
-                    // 显示选中的Fragment
                     if (selectedFragment.isAdded()) {
                         transaction.show(selectedFragment);
                     } else {
@@ -329,12 +351,9 @@ public class MainActivity extends AppCompatActivity {
 
                     transaction.commit();
 
-                    // 根据页面类型控制播放栏显示
                     if (selectedFragment == homeFragment) {
-                        // 首页：如果有正在播放的歌曲，显示播放栏
                         showPlayControlBarView();
                     } else {
-                        // 搜索页和我的页：隐藏播放栏
                         hidePlayControlBar();
                     }
                 }
@@ -343,7 +362,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         
-        // 监听返回栈变化，恢复底部导航栏
         getSupportFragmentManager().addOnBackStackChangedListener(() -> {
             if (getSupportFragmentManager().getBackStackEntryCount() == 0) {
                 bottomNavigationView.setVisibility(View.VISIBLE);
@@ -444,6 +462,25 @@ public class MainActivity extends AppCompatActivity {
     public void playNextSong() {
         Log.d("MainActivity", "playNextSong");
 
+        // 获取播放模式
+        int playMode = musicPlayerService != null ? musicPlayerService.getPlayMode() : MusicPlayerService.PLAY_MODE_SEQUENCE;
+        
+        // 单曲循环模式下，重新播放当前歌曲
+        if (playMode == MusicPlayerService.PLAY_MODE_SINGLE) {
+            Log.d("MainActivity", "单曲循环模式，重新播放当前歌曲");
+            if (musicPlayerService != null) {
+                musicPlayerService.repeat();
+            }
+            return;
+        }
+        
+        // 随机播放模式下，点击下一首也随机选择
+        if (playMode == MusicPlayerService.PLAY_MODE_RANDOM) {
+            Log.d("MainActivity", "随机播放模式，点击下一首也随机选择");
+            playRandomSong();
+            return;
+        }
+
         if (currentPlaylist == null || currentPlaylist.isEmpty()) {
             Toast.makeText(this, "播放列表为空", Toast.LENGTH_SHORT).show();
             return;
@@ -475,6 +512,25 @@ public class MainActivity extends AppCompatActivity {
     public void playPreviousSong() {
         Log.d("MainActivity", "playPreviousSong");
 
+        // 获取播放模式
+        int playMode = musicPlayerService != null ? musicPlayerService.getPlayMode() : MusicPlayerService.PLAY_MODE_SEQUENCE;
+        
+        // 单曲循环模式下，重新播放当前歌曲
+        if (playMode == MusicPlayerService.PLAY_MODE_SINGLE) {
+            Log.d("MainActivity", "单曲循环模式，重新播放当前歌曲");
+            if (musicPlayerService != null) {
+                musicPlayerService.repeat();
+            }
+            return;
+        }
+        
+        // 随机播放模式下，点击上一首也随机选择
+        if (playMode == MusicPlayerService.PLAY_MODE_RANDOM) {
+            Log.d("MainActivity", "随机播放模式，点击上一首也随机选择");
+            playRandomSong();
+            return;
+        }
+
         if (currentPlaylist == null || currentPlaylist.isEmpty()) {
             Toast.makeText(this, "播放列表为空", Toast.LENGTH_SHORT).show();
             return;
@@ -498,6 +554,49 @@ public class MainActivity extends AppCompatActivity {
         notifyPlayerFragmentUpdate();
     }
     
+    // 随机播放
+    public void playRandomSong() {
+        Log.d("MainActivity", "===== playRandomSong 被调用 =====");
+        Log.d("MainActivity", "当前播放列表大小: " + (currentPlaylist != null ? currentPlaylist.size() : 0));
+        Log.d("MainActivity", "当前歌曲索引: " + currentSongIndex);
+        
+        if (currentPlaylist == null || currentPlaylist.isEmpty()) {
+            Toast.makeText(this, "播放列表为空", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        if (currentPlaylist.size() == 1) {
+            Log.d("MainActivity", "只有一首歌，重新播放");
+            Music music = currentPlaylist.get(0);
+            Log.d("MainActivity", "随机播放歌曲: " + music.getName());
+            playMusicFromCurrentPlaylist(music, 0);
+            return;
+        }
+        
+        // 随机选择一个不等于当前的索引
+        java.util.Random random = new java.util.Random();
+        int randomIndex;
+        int attempts = 0;
+        do {
+            randomIndex = random.nextInt(currentPlaylist.size());
+            attempts++;
+            Log.d("MainActivity", "第" + attempts + "次随机生成索引: " + randomIndex + ", 当前索引: " + currentSongIndex);
+        } while (randomIndex == currentSongIndex && attempts < 10);
+        
+        currentSongIndex = randomIndex;
+        Music randomMusic = currentPlaylist.get(currentSongIndex);
+        Log.d("MainActivity", "===== 随机播放选择 =====");
+        Log.d("MainActivity", "选择的歌曲: " + randomMusic.getName());
+        Log.d("MainActivity", "选择的索引: " + currentSongIndex);
+        Log.d("MainActivity", "========================");
+        
+        playMusicFromCurrentPlaylist(randomMusic, currentSongIndex);
+        
+        // 通知更新
+        notifyPlaybackStateChanged();
+        notifyPlayerFragmentUpdate();
+    }
+
     // 从当前播放列表播放歌曲（通用方法）
     private void playMusicFromCurrentPlaylist(Music music, int index) {
         Log.d("MainActivity", "playMusicFromCurrentPlaylist: " + music.getName());
@@ -927,6 +1026,38 @@ public class MainActivity extends AppCompatActivity {
                 });
             }
         });
+    }
+
+    public void playMusicFromSearchWithSong(long songId, String songName, String artist, String album, String coverUrl, String playUrl) {
+        Log.d("MainActivity", "playMusicFromSearchWithSong - 歌曲: " + songName);
+        
+        if (!isServiceBound || musicPlayerService == null) {
+            Toast.makeText(this, "播放器服务未连接", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        Music music = new Music(String.valueOf(songId), songName, artist, album, coverUrl);
+        
+        this.currentPlaylist = new java.util.ArrayList<>();
+        this.currentPlaylist.add(music);
+        this.currentSongIndex = 0;
+        this.currentSongName = songName;
+        this.currentArtist = artist;
+        this.currentCoverUrl = coverUrl;
+        
+        musicPlayerService.play(playUrl);
+        
+        showPlayControlBar(
+            songName,
+            artist,
+            coverUrl,
+            currentPlaylist,
+            0
+        );
+        
+        notifyPlayerFragmentUpdate();
+        
+        Toast.makeText(this, "正在播放: " + songName, Toast.LENGTH_SHORT).show();
     }
 
 }

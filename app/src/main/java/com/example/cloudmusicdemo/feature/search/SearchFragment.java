@@ -172,8 +172,6 @@ public class SearchFragment extends Fragment{
                                 }
                             }
                             
-                            Log.d("SearchFragment", "歌曲[" + song.getName() + "] 最终封面URL: " + coverUrl);
-                            
                             Music music = new Music(
                                 String.valueOf(song.getId()),
                                 song.getName(),
@@ -213,7 +211,6 @@ public class SearchFragment extends Fragment{
     public void updatePlayingState(int position, boolean isPlaying) {
         if (searchAdapter != null) {
             searchAdapter.updatePlayingState(position, isPlaying);
-            Log.d("SearchFragment", "更新播放状态: position=" + position + ", isPlaying=" + isPlaying);
         }
     }
 }

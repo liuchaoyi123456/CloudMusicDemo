@@ -19,6 +19,12 @@ public class MusicPlayerService extends Service{
     private boolean isPreparing = false;
     private boolean isPaused = false;
     
+    // 播放模式：0=顺序播放，1=随机播放，2=单曲循环
+    private int playMode = 0;
+    public static final int PLAY_MODE_SEQUENCE = 0;
+    public static final int PLAY_MODE_RANDOM = 1;
+    public static final int PLAY_MODE_SINGLE = 2;
+    
     public interface OnPlaybackStateChangeListener {
         void onStateChanged(boolean isPlaying);
         void onError(String error);
@@ -59,14 +65,11 @@ public class MusicPlayerService extends Service{
         
         // 设置准备监听器
         mediaPlayer.setOnPreparedListener(mp -> {
-            Log.d("MusicPlayer", "媒体准备完成");
             isPreparing = false;
             if (!isPaused) {
                 mp.start();
-                Log.d("MusicPlayer", "开始播放");
                 notifyStateChanged(true);
             } else {
-                Log.d("MusicPlayer", "准备完成但处于暂停状态");
                 notifyStateChanged(false);
             }
         });
@@ -83,10 +86,18 @@ public class MusicPlayerService extends Service{
         
         // 设置完成监听器
         mediaPlayer.setOnCompletionListener(mp -> {
-            Log.d("MusicPlayer", "播放完成");
             isPreparing = false;
             isPaused = false;
-            notifyCompletion();
+            
+            if (playMode == PLAY_MODE_SINGLE) {
+                if (currentUrl != null && !currentUrl.isEmpty()) {
+                    mp.seekTo(0);
+                    mp.start();
+                    notifyStateChanged(true);
+                }
+            } else {
+                notifyCompletion();
+            }
         });
     }
     
@@ -137,22 +148,17 @@ public class MusicPlayerService extends Service{
         }
         
         try {
-            // 如果是同一首歌且正在播放，忽略
             if(currentUrl!=null && currentUrl.equals(url) && mediaPlayer.isPlaying() && !isPreparing){
-                Log.d("MusicPlayer", "正在播放同一首歌");
                 return;
             }
             
-            Log.d("MusicPlayer", "开始播放新歌曲");
             isPreparing = true;
             isPaused = false;
             
-            // 完全重置
             mediaPlayer.reset();
             mediaPlayer.setDataSource(url);
             mediaPlayer.prepareAsync();
             currentUrl = url;
-            Log.d("MusicPlayer","准备中...");
 
         } catch (IOException e) {
             Log.e("MusicPlayer","IO异常",e);
@@ -170,7 +176,6 @@ public class MusicPlayerService extends Service{
         if(mediaPlayer!=null && mediaPlayer.isPlaying()){
             mediaPlayer.pause();
             isPaused = true;
-            Log.d("MusicPlayer", "暂停");
             notifyStateChanged(false);
         }
     }
@@ -179,7 +184,6 @@ public class MusicPlayerService extends Service{
         if(mediaPlayer!=null && !mediaPlayer.isPlaying() && isPaused){
             mediaPlayer.start();
             isPaused = false;
-            Log.d("MusicPlayer", "继续播放");
             notifyStateChanged(true);
         }
     }
@@ -191,7 +195,6 @@ public class MusicPlayerService extends Service{
     public int getCurrentPosition() {
         if (mediaPlayer != null && !isPreparing) {
             try {
-                // 先检查播放器状态
                 if (mediaPlayer.isPlaying() || isPaused) {
                     return mediaPlayer.getCurrentPosition();
                 }
@@ -205,7 +208,6 @@ public class MusicPlayerService extends Service{
     public int getDuration() {
         if (mediaPlayer != null && !isPreparing) {
             try {
-                // 只有在播放器有效时才获取时长
                 int duration = mediaPlayer.getDuration();
                 if (duration > 0) {
                     return duration;
@@ -224,6 +226,47 @@ public class MusicPlayerService extends Service{
             } catch (Exception e) {
                 Log.e("MusicPlayer", "跳转失败", e);
             }
+        }
+    }
+    
+    public void repeat() {
+        if (mediaPlayer != null && currentUrl != null) {
+            try {
+                mediaPlayer.seekTo(0);
+                mediaPlayer.start();
+                isPaused = false;
+                notifyStateChanged(true);
+            } catch (Exception e) {
+                Log.e("MusicPlayer", "重复播放失败", e);
+            }
+        }
+    }
+    
+    public int getPlayMode() {
+        return playMode;
+    }
+    
+    public void togglePlayMode() {
+        playMode = (playMode + 1) % 3;
+    }
+    
+    public void setPlayMode(int mode) {
+        if (mode >= 0 && mode <= 2) {
+            this.playMode = mode;
+        }
+    }
+    
+    // 获取播放模式名称
+    private String getPlayModeName() {
+        switch (playMode) {
+            case PLAY_MODE_SEQUENCE:
+                return "顺序播放";
+            case PLAY_MODE_RANDOM:
+                return "随机播放";
+            case PLAY_MODE_SINGLE:
+                return "单曲循环";
+            default:
+                return "未知";
         }
     }
     

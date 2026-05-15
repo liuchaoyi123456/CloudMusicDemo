@@ -11,6 +11,11 @@
         android:title="搜索">
     </item>
     <item
+        android:id="@+id/nav_assistant"
+        android:icon="@drawable/ic_assistant"
+        android:title="小助手">
+    </item>
+    <item
     android:id="@+id/nav_mine"
     android:icon="@drawable/ic_mine"
     android:title="我的">

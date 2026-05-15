@@ -27,18 +27,17 @@
             android:textSize="20sp"
             android:textStyle="bold" />
 
-        <!-- 语音助手按钮 -->
-        <ImageView
-            android:id="@+id/ivVoiceAssistant"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:src="@android:drawable/ic_btn_speak_now"
-            android:contentDescription="语音助手"
-            android:padding="6dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:tint="#FFFFFF" />
+        <!-- Deleted:<ImageView -->
+        <!-- Deleted:    android:id="@+id/ivVoiceAssistant" -->
+        <!-- Deleted:    android:layout_width="40dp" -->
+        <!-- Deleted:    android:layout_height="40dp" -->
+        <!-- Deleted:    android:src="@android:drawable/ic_btn_speak_now" -->
+        <!-- Deleted:    android:contentDescription="语音助手" -->
+        <!-- Deleted:    android:padding="6dp" -->
+        <!-- Deleted:    android:clickable="true" -->
+        <!-- Deleted:    android:focusable="true" -->
+        <!-- Deleted:    android:background="?attr/selectableItemBackgroundBorderless" -->
+        <!-- Deleted:    android:tint="#FFFFFF" /> -->
     </LinearLayout>
 
     <TextView

@@ -1,5 +1,10 @@
 package com.example.cloudmusicdemo.feature.player;
 
+import android.app.Dialog;
+import android.view.Window;
+import android.view.WindowManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -49,26 +54,35 @@ public class PlayerFragment extends Fragment {
     private ImageView ivPlayerCover;
     private TextView tvPlayerSongName;
     private TextView tvPlayerArtist;
-    private TextView tvLyricPrevious; // 上一句歌词
-    private TextView tvLyricCurrent;  // 当前歌词
-    private TextView tvLyricNext;     // 下一句歌词
+    private TextView tvLyricPrevious;
+    private TextView tvLyricCurrent;
+    private TextView tvLyricNext;
     private SeekBar seekBar;
     private TextView tvCurrentTime;
     private TextView tvTotalTime;
     private ImageView ivPlayerPlayPause;
     private ImageView ivPlayerPrev;
     private ImageView ivPlayerNext;
+    private ImageView ivPlayerPlayMode;
+    private ImageView ivPlayerPlaylist; // 播放列表按钮
     
     private MusicPlayerService musicPlayerService;
     private boolean isServiceBound = false;
     private Handler progressHandler = new Handler();
     private Runnable progressRunnable;
     
-    private List<LyricParser.LyricLine> lyricLines; // 新增：歌词列表
-    private int currentLyricIndex = -1; // 新增：当前歌词索引
+    private List<LyricParser.LyricLine> lyricLines;
+    private int currentLyricIndex = -1;
     
-    private MusicPlayerService.OnPlaybackStateChangeListener playbackStateListener; // 播放状态监听器
-    private boolean isPlaying = false; // 播放状态
+    private MusicPlayerService.OnPlaybackStateChangeListener playbackStateListener;
+    private boolean isPlaying = false;
+    private int currentPlayMode = MusicPlayerService.PLAY_MODE_SEQUENCE;
+
+    // 播放列表相关
+    private Dialog playlistDialog;
+    private RecyclerView recyclerViewPlaylist;
+    private PlaylistAdapter playlistAdapter;
+    private TextView tvPlaylistCount;
 
     public static PlayerFragment newInstance(String songName, String artist, String coverUrl) {
         PlayerFragment fragment = new PlayerFragment();
@@ -150,10 +164,41 @@ public class PlayerFragment extends Fragment {
         ivPlayerPlayPause = view.findViewById(R.id.ivPlayerPlayPause);
         ivPlayerPrev = view.findViewById(R.id.ivPlayerPrev);
         ivPlayerNext = view.findViewById(R.id.ivPlayerNext);
+        ivPlayerPlayMode = view.findViewById(R.id.ivPlayerPlayMode);
+        ivPlayerPlaylist = view.findViewById(R.id.ivPlayerPlaylist);
         
         // 设置默认歌词
         tvLyricCurrent.setText("暂无歌词");
         
+        // 播放模式按钮
+        ivPlayerPlayMode.setOnClickListener(v -> {
+            if (musicPlayerService != null) {
+                musicPlayerService.togglePlayMode();
+                currentPlayMode = musicPlayerService.getPlayMode();
+                updatePlayModeIcon();
+                
+                String modeName = "";
+                switch (currentPlayMode) {
+                    case MusicPlayerService.PLAY_MODE_SEQUENCE:
+                        modeName = "顺序播放";
+                        break;
+                    case MusicPlayerService.PLAY_MODE_RANDOM:
+                        modeName = "随机播放";
+                        break;
+                    case MusicPlayerService.PLAY_MODE_SINGLE:
+                        modeName = "单曲循环";
+                        break;
+                }
+                Toast.makeText(getContext(), "切换为: " + modeName, Toast.LENGTH_SHORT).show();
+            }
+        });
+        
+        // 播放列表按钮（暂时无功能）
+        ivPlayerPlaylist.setOnClickListener(v -> {
+            showPlaylistDialog();
+        });
+
+
         // 播放/暂停按钮
         ivPlayerPlayPause.setOnClickListener(v -> {
             if (musicPlayerService != null) {
@@ -265,7 +310,6 @@ public class PlayerFragment extends Fragment {
                     requireActivity().runOnUiThread(() -> {
                         isPlaying = playing;
                         updatePlayPauseIcon();
-                        Log.d("PlayerFragment", "播放状态变化: " + (playing ? "播放中" : "已暂停"));
                     });
                 }
 
@@ -278,10 +322,7 @@ public class PlayerFragment extends Fragment {
 
                 @Override
                 public void onCompletion() {
-                    requireActivity().runOnUiThread(() -> {
-                        // 自动播放下一首
-                        playNextSong();
-                    });
+                    // 播放完成，由MainActivity处理
                 }
             };
             
@@ -292,20 +333,17 @@ public class PlayerFragment extends Fragment {
             isPlaying = musicPlayerService.isPlaying();
             updatePlayPauseIcon();
             
-            // 更新总时长
-            updateDuration();
+            currentPlayMode = musicPlayerService.getPlayMode();
+            updatePlayModeIcon();
             
-            Log.d("PlayerFragment", "服务已连接");
+            updateDuration();
         }
-
+        
         @Override
         public void onServiceDisconnected(ComponentName name) {
-            if (musicPlayerService != null && playbackStateListener != null) {
-                musicPlayerService.removeOnPlaybackStateChangeListener(playbackStateListener);
-            }
             musicPlayerService = null;
             isServiceBound = false;
-            Log.d("PlayerFragment", "服务已断开");
+            stopProgressUpdate();
         }
     };
     
@@ -348,34 +386,21 @@ public class PlayerFragment extends Fragment {
         
         int newIndex = LyricParser.findLyricIndex(lyricLines, currentPosition);
         
-        if (newIndex != currentLyricIndex && newIndex >= 0) {
-            currentLyricIndex = newIndex;
-            
-            // 获取当前、上一句、下一句歌词
-            String previousLyric = "";
+        if (newIndex >= 0 && newIndex < lyricLines.size()) {
             String currentLyric = lyricLines.get(newIndex).text;
-            String nextLyric = "";
+            tvLyricCurrent.setText(currentLyric);
             
             if (newIndex > 0) {
-                previousLyric = lyricLines.get(newIndex - 1).text;
+                tvLyricPrevious.setText(lyricLines.get(newIndex - 1).text);
+            } else {
+                tvLyricPrevious.setText("");
             }
             
             if (newIndex < lyricLines.size() - 1) {
-                nextLyric = lyricLines.get(newIndex + 1).text;
+                tvLyricNext.setText(lyricLines.get(newIndex + 1).text);
+            } else {
+                tvLyricNext.setText("");
             }
-            
-            // 更新UI
-            if (tvLyricPrevious != null) {
-                tvLyricPrevious.setText(previousLyric);
-            }
-            if (tvLyricCurrent != null) {
-                tvLyricCurrent.setText(currentLyric);
-            }
-            if (tvLyricNext != null) {
-                tvLyricNext.setText(nextLyric);
-            }
-            
-            Log.d("PlayerFragment", "歌词[" + newIndex + "]: " + currentLyric);
         }
     }
 
@@ -433,6 +458,25 @@ public class PlayerFragment extends Fragment {
         }
     }
     
+    // 更新播放模式图标
+    private void updatePlayModeIcon() {
+        if (ivPlayerPlayMode == null) {
+            return;
+        }
+        
+        switch (currentPlayMode) {
+            case MusicPlayerService.PLAY_MODE_SEQUENCE:
+                ivPlayerPlayMode.setImageResource(R.drawable.ic_play_mode_sequence);
+                break;
+            case MusicPlayerService.PLAY_MODE_RANDOM:
+                ivPlayerPlayMode.setImageResource(R.drawable.ic_play_mode_random);
+                break;
+            case MusicPlayerService.PLAY_MODE_SINGLE:
+                ivPlayerPlayMode.setImageResource(R.drawable.ic_play_mode_single);
+                break;
+        }
+    }
+    
     // 播放上一首
     private void playPreviousSong() {
         if (getActivity() instanceof MainActivity) {
@@ -462,28 +506,12 @@ public class PlayerFragment extends Fragment {
                     LyricResponse lyricResponse = response.body();
                     
                     if (lyricResponse.getLrc() != null && lyricResponse.getLrc().getLyric() != null) {
-                        String lyricText = lyricResponse.getLrc().getLyric();
-                        lyricLines = LyricParser.parseLyric(lyricText);
-                        
-                        if (lyricLines != null && !lyricLines.isEmpty()) {
-                            Log.d("PlayerFragment", "歌词加载成功，共" + lyricLines.size() + "行");
-                            // 显示第一句歌词
-                            tvLyricCurrent.setText(lyricLines.get(0).text);
-                            tvLyricPrevious.setText("");
-                            if (lyricLines.size() > 1) {
-                                tvLyricNext.setText(lyricLines.get(1).text);
-                            } else {
-                                tvLyricNext.setText("");
-                            }
-                        } else {
-                            tvLyricCurrent.setText("纯音乐，请欣赏");
-                            tvLyricPrevious.setText("");
-                            tvLyricNext.setText("");
+                        lyricLines = LyricParser.parseLyric(response.body().getLrc().getLyric());
+                        if (lyricLines != null) {
+                            currentLyricIndex = -1;
                         }
                     } else {
                         tvLyricCurrent.setText("暂无歌词");
-                        tvLyricPrevious.setText("");
-                        tvLyricNext.setText("");
                     }
                 }
             }
@@ -498,8 +526,6 @@ public class PlayerFragment extends Fragment {
 
     // 刷新UI（由MainActivity调用）
     public void refreshUI() {
-        Log.d("PlayerFragment", "refreshUI 被调用");
-        
         if (getActivity() instanceof MainActivity) {
             final MainActivity mainActivity = (MainActivity) getActivity();
             mainActivity.hidePlayControlBar();
@@ -510,8 +536,6 @@ public class PlayerFragment extends Fragment {
             if (playlist != null && currentIndex >= 0 && currentIndex < playlist.size()) {
                 final Music currentMusic = playlist.get(currentIndex);
                 
-                Log.d("PlayerFragment", "刷新UI - 歌曲: " + currentMusic.getName());
-                
                 tvPlayerSongName.setText(currentMusic.getName());
                 tvPlayerArtist.setText(currentMusic.getArtist());
                 
@@ -519,18 +543,17 @@ public class PlayerFragment extends Fragment {
                 api.getSongDetail(currentMusic.getId()).enqueue(new Callback<SongDetailResponse>() {
                     @Override
                     public void onResponse(Call<SongDetailResponse> call, Response<SongDetailResponse> response) {
-                        String correctCoverUrl = currentMusic.getCoverUrl();
+                        String tempCoverUrl = currentMusic.getCoverUrl();
                         
                         if (response.isSuccessful() && response.body() != null && 
                             response.body().getSongs() != null && !response.body().getSongs().isEmpty()) {
                             SongDetailResponse.Song songDetail = response.body().getSongs().get(0);
                             if (songDetail.getAl() != null && songDetail.getAl().getPicUrl() != null) {
-                                correctCoverUrl = songDetail.getAl().getPicUrl();
-                                Log.d("PlayerFragment", "从详情接口获取到正确封面URL: " + correctCoverUrl);
+                                tempCoverUrl = songDetail.getAl().getPicUrl();
                             }
                         }
                         
-                        final String finalCoverUrl = correctCoverUrl;
+                        final String finalCoverUrl = tempCoverUrl;
                         requireActivity().runOnUiThread(() -> {
                             mainActivity.updateCurrentCoverUrl(finalCoverUrl);
                             
@@ -563,8 +586,70 @@ public class PlayerFragment extends Fragment {
                 loadLyric(currentMusic.getId());
                 currentLyricIndex = -1;
                 
-                Log.d("PlayerFragment", "UI已更新为: " + currentMusic.getName());
+                if (musicPlayerService != null) {
+                    currentPlayMode = musicPlayerService.getPlayMode();
+                    updatePlayModeIcon();
+                }
             }
         }
+    }
+    
+    // 显示播放列表弹窗
+    private void showPlaylistDialog() {
+        if (playlistDialog == null) {
+            playlistDialog = new Dialog(requireContext(), android.R.style.Theme_Material_Dialog);
+            playlistDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+            
+            View dialogView = LayoutInflater.from(requireContext())
+                    .inflate(R.layout.dialog_playlist, null);
+            
+            recyclerViewPlaylist = dialogView.findViewById(R.id.recyclerViewPlaylist);
+            tvPlaylistCount = dialogView.findViewById(R.id.tvPlaylistCount);
+            ImageView btnClose = dialogView.findViewById(R.id.btnClosePlaylist);
+            
+            recyclerViewPlaylist.setLayoutManager(new LinearLayoutManager(requireContext()));
+            playlistAdapter = new PlaylistAdapter((music, position) -> {
+                if (getActivity() instanceof MainActivity) {
+                    MainActivity mainActivity = (MainActivity) getActivity();
+                    mainActivity.playMusicFromSearch(mainActivity.getCurrentPlaylist(), position);
+                }
+                playlistDialog.dismiss();
+            });
+            recyclerViewPlaylist.setAdapter(playlistAdapter);
+            
+            btnClose.setOnClickListener(v -> playlistDialog.dismiss());
+            
+            playlistDialog.setContentView(dialogView);
+            
+            Window window = playlistDialog.getWindow();
+            if (window != null) {
+                window.setLayout(
+                    (int)(getResources().getDisplayMetrics().widthPixels * 0.9),
+                    WindowManager.LayoutParams.WRAP_CONTENT
+                );
+                window.setGravity(android.view.Gravity.BOTTOM);
+                window.setWindowAnimations(R.style.DialogAnimation);
+            }
+        }
+        
+        if (getActivity() instanceof MainActivity) {
+            MainActivity mainActivity = (MainActivity) getActivity();
+            List<Music> playlist = mainActivity.getCurrentPlaylist();
+            int currentIndex = mainActivity.getCurrentSongIndex();
+            
+            if (playlist != null && !playlist.isEmpty()) {
+                playlistAdapter.setPlaylist(playlist);
+                playlistAdapter.setCurrentPlayingIndex(currentIndex);
+                tvPlaylistCount.setText(playlist.size() + "首");
+                
+                recyclerViewPlaylist.post(() -> {
+                    if (currentIndex >= 0 && currentIndex < playlist.size()) {
+                        recyclerViewPlaylist.scrollToPosition(currentIndex);
+                    }
+                });
+            }
+        }
+        
+        playlistDialog.show();
     }
 }
