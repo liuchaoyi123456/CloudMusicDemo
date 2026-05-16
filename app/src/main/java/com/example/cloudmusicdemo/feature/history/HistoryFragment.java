@@ -76,9 +76,12 @@ public class HistoryFragment extends Fragment {
     public void onResume() {
         super.onResume();
         
+        // 重新加载播放历史列表
+        loadHistory();
+        
         if (getActivity() instanceof com.example.cloudmusicdemo.MainActivity) {
             com.example.cloudmusicdemo.MainActivity mainActivity = (com.example.cloudmusicdemo.MainActivity) getActivity();
-            mainActivity.hidePlayControlBar();
+            mainActivity.showPlayControlBarView();
             mainActivity.getBottomNavigationView().setVisibility(View.GONE);
         }
     }

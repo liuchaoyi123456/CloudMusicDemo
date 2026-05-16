@@ -279,6 +279,13 @@ public class MainActivity extends AppCompatActivity {
         // 播放栏点击 - 跳转到播放界面
         playControlBar.setOnClickListener(v -> {
             if (!currentSongName.isEmpty() && currentPlaylist != null && currentSongIndex >= 0) {
+                // 增加边界检查，防止索引越界
+                if (currentSongIndex >= currentPlaylist.size()) {
+                    Log.e("MainActivity", "currentSongIndex 越界: " + currentSongIndex + ", 列表大小: " + currentPlaylist.size());
+                    Toast.makeText(this, "播放列表异常，请重新选择歌曲", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
                 // 获取当前歌曲的ID
                 String songId = currentPlaylist.get(currentSongIndex).getId();
                 
@@ -373,6 +380,15 @@ public class MainActivity extends AppCompatActivity {
         getSupportFragmentManager().addOnBackStackChangedListener(() -> {
             if (getSupportFragmentManager().getBackStackEntryCount() == 0) {
                 bottomNavigationView.setVisibility(View.VISIBLE);
+                
+                // 返回到主页面时，根据当前Fragment决定是否显示播放栏
+                if (currentFragment instanceof MineFragment) {
+                    hidePlayControlBar();
+                    Log.d("MainActivity", "BackStack清空，当前是MineFragment，隐藏播放栏");
+                } else if (currentFragment instanceof HomeFragment) {
+                    showPlayControlBarView();
+                    Log.d("MainActivity", "BackStack清空，当前是HomeFragment，显示播放栏");
+                }
             }
         });
     }
@@ -398,13 +414,12 @@ public class MainActivity extends AppCompatActivity {
         String fragmentType = currentFragment != null ? currentFragment.getClass().getSimpleName() : "null";
         Log.d("MainActivity", "showPlayControlBar - currentFragment: " + fragmentType);
 
-        if (currentFragment != null && currentFragment instanceof PlayerFragment) {
-            Log.d("MainActivity", "当前在PlayerFragment页面，不显示播放栏");
-            playControlBar.setVisibility(View.GONE);
-        } else if (currentFragment != null && (currentFragment instanceof MineFragment || currentFragment instanceof SearchFragment)) {
-            Log.d("MainActivity", "当前在MineFragment或SearchFragment页面，不显示播放栏");
+        // 如果当前在"我的"页面，不显示播放栏
+        if (currentFragment instanceof com.example.cloudmusicdemo.feature.mine.MineFragment) {
+            Log.d("MainActivity", "当前在MineFragment页面，不显示播放栏");
             playControlBar.setVisibility(View.GONE);
         } else {
+            // 其他页面显示播放栏
             playControlBar.setVisibility(View.VISIBLE);
             Log.d("MainActivity", "显示播放栏");
         }

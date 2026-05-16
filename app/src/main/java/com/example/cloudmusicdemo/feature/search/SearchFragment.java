@@ -53,12 +53,18 @@ public class SearchFragment extends Fragment{
             if (getActivity() instanceof MainActivity) {
                 MainActivity mainActivity = (MainActivity) getActivity();
                 
-                // 检查是否正在播放这首歌
+                // 检查是否正在播放这首歌（通过歌曲ID判断）
                 int currentIndex = mainActivity.getCurrentSongIndex();
                 List<Music> currentPlaylist = mainActivity.getCurrentPlaylist();
                 
+                boolean isCurrentPlayingSong = false;
+                if (currentPlaylist != null && currentIndex >= 0 && currentIndex < currentPlaylist.size()) {
+                    String currentPlayingId = currentPlaylist.get(currentIndex).getId();
+                    isCurrentPlayingSong = currentPlayingId.equals(music.getId());
+                }
+                
                 // 如果点击的是当前正在播放的歌曲，则切换播放/暂停
-                if (currentPlaylist != null && currentIndex == position) {
+                if (isCurrentPlayingSong) {
                     if (mainActivity.getMusicPlayerService() != null) {
                         if (mainActivity.getMusicPlayerService().isPlaying()) {
                             mainActivity.getMusicPlayerService().pause();
@@ -201,9 +207,11 @@ public class SearchFragment extends Fragment{
     @Override
     public void onResume() {
         super.onResume();
-        // 进入搜索页面时隐藏播放栏
+        // 进入搜索页面时显示播放栏和底部导航栏
         if (getActivity() instanceof MainActivity) {
-            ((MainActivity) getActivity()).hidePlayControlBar();
+            MainActivity mainActivity = (MainActivity) getActivity();
+            mainActivity.showPlayControlBarView();
+            mainActivity.getBottomNavigationView().setVisibility(View.VISIBLE);
         }
     }
     

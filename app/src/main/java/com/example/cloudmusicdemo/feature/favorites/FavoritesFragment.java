@@ -89,7 +89,7 @@ public class FavoritesFragment extends Fragment {
         
         if (getActivity() instanceof com.example.cloudmusicdemo.MainActivity) {
             com.example.cloudmusicdemo.MainActivity mainActivity = (com.example.cloudmusicdemo.MainActivity) getActivity();
-            mainActivity.hidePlayControlBar();
+            mainActivity.showPlayControlBarView();
             mainActivity.getBottomNavigationView().setVisibility(View.GONE);
         }
     }

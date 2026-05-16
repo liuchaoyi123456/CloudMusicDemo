@@ -139,6 +139,8 @@ public class MineFragment extends Fragment{
         super.onResume();
         loadStatistics();
         
+        android.util.Log.d("MineFragment", "onResume 被调用，隐藏播放栏");
+        
         if (getActivity() instanceof MainActivity) {
             ((MainActivity) getActivity()).hidePlayControlBar();
         }
