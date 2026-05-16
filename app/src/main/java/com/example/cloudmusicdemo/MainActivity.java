@@ -831,6 +831,16 @@ public class MainActivity extends AppCompatActivity {
         return musicPlayerService;
     }
 
+    // 提供给 Fragment 获取当前 Fragment
+    public Fragment getCurrentFragment() {
+        return currentFragment;
+    }
+
+    // 提供给 Fragment 获取底部导航栏
+    public BottomNavigationView getBottomNavigationView() {
+        return bottomNavigationView;
+    }
+
     // 通知所有Fragment播放状态变化
     public void notifyPlaybackStateChanged() {
         // 更新首页Adapter的播放位置

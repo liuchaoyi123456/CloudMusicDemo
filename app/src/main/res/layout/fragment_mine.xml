@@ -2,7 +2,7 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F5F5">
+    android:background="#FFF0F2">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -39,7 +39,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="#FFFFFF"
+            android:background="#FFF0F2"
             android:padding="16dp"
             android:layout_marginBottom="8dp">
 
@@ -81,13 +81,6 @@
                         android:textColor="#999999"
                         android:layout_marginTop="4dp" />
                 </LinearLayout>
-
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_media_play"
-                    android:rotation="180"
-                    android:tint="#CCCCCC" />
             </LinearLayout>
         </LinearLayout>
 
@@ -96,7 +89,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="#FFFFFF"
+            android:background="#FFF0F2"
             android:padding="16dp"
             android:layout_marginBottom="8dp">
 
@@ -206,7 +199,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="#FFFFFF"
+            android:background="#FFF0F2"
             android:paddingTop="8dp"
             android:paddingBottom="8dp">
 
@@ -245,13 +238,6 @@
                     android:textSize="14sp"
                     android:textColor="#999999"
                     android:layout_marginEnd="8dp" />
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:src="@android:drawable/ic_media_play"
-                    android:rotation="180"
-                    android:tint="#CCCCCC" />
             </LinearLayout>
 
             <View
@@ -295,13 +281,6 @@
                     android:textSize="14sp"
                     android:textColor="#999999"
                     android:layout_marginEnd="8dp" />
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:src="@android:drawable/ic_media_play"
-                    android:rotation="180"
-                    android:tint="#CCCCCC" />
             </LinearLayout>
 
             <View
@@ -336,13 +315,6 @@
                     android:textSize="15sp"
                     android:textColor="#333333"
                     android:layout_marginStart="16dp" />
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:src="@android:drawable/ic_media_play"
-                    android:rotation="180"
-                    android:tint="#CCCCCC" />
             </LinearLayout>
 
             <View
@@ -377,13 +349,6 @@
                     android:textSize="15sp"
                     android:textColor="#333333"
                     android:layout_marginStart="16dp" />
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:src="@android:drawable/ic_media_play"
-                    android:rotation="180"
-                    android:tint="#CCCCCC" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>

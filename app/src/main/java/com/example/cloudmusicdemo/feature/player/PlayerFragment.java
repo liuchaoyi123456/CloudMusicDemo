@@ -32,6 +32,7 @@ import com.example.cloudmusicdemo.MainActivity;
 import com.example.cloudmusicdemo.R;
 import com.example.cloudmusicdemo.core.ui.GradientBackgroundView;
 import com.example.cloudmusicdemo.core.util.LyricParser;
+import com.example.cloudmusicdemo.data.local.UserDataManager;
 import com.example.cloudmusicdemo.data.model.Music;
 import com.example.cloudmusicdemo.data.remote.LyricResponse;
 import com.example.cloudmusicdemo.data.remote.NetEaseApi;
@@ -49,7 +50,7 @@ public class PlayerFragment extends Fragment {
     private static final String ARG_SONG_NAME = "song_name";
     private static final String ARG_ARTIST = "artist";
     private static final String ARG_COVER_URL = "cover_url";
-    private static final String ARG_SONG_ID = "song_id"; // 新增
+    private static final String ARG_SONG_ID = "song_id";
     
     private ImageView ivPlayerCover;
     private TextView tvPlayerSongName;
@@ -66,6 +67,8 @@ public class PlayerFragment extends Fragment {
     private ImageView ivPlayerPlayMode;
     private ImageView ivPlayerPlaylist; // 播放列表按钮
     
+    private ImageView ivPlayerFavorite; // 收藏按钮
+    
     private MusicPlayerService musicPlayerService;
     private boolean isServiceBound = false;
     private Handler progressHandler = new Handler();
@@ -78,11 +81,13 @@ public class PlayerFragment extends Fragment {
     private boolean isPlaying = false;
     private int currentPlayMode = MusicPlayerService.PLAY_MODE_SEQUENCE;
 
-    // 播放列表相关
     private Dialog playlistDialog;
     private RecyclerView recyclerViewPlaylist;
     private PlaylistAdapter playlistAdapter;
     private TextView tvPlaylistCount;
+
+    private UserDataManager userDataManager;
+    private String currentSongId;
 
     public static PlayerFragment newInstance(String songName, String artist, String coverUrl) {
         PlayerFragment fragment = new PlayerFragment();
@@ -94,7 +99,6 @@ public class PlayerFragment extends Fragment {
         return fragment;
     }
     
-    // 新增：带songId的构造方法
     public static PlayerFragment newInstance(String songId, String songName, String artist, String coverUrl) {
         PlayerFragment fragment = new PlayerFragment();
         Bundle args = new Bundle();
@@ -112,16 +116,13 @@ public class PlayerFragment extends Fragment {
                              @Nullable ViewGroup container, 
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_player, container, false);
+        
+        userDataManager = UserDataManager.getInstance(requireContext());
+        
         initViews(view);
         
-        // 启动背景动画
-        GradientBackgroundView gradientBackground = view.findViewById(R.id.gradientBackground);
-        if (gradientBackground != null) {
-            gradientBackground.startAnimation();
-        }
-        
         if (getArguments() != null) {
-            String songId = getArguments().getString(ARG_SONG_ID, "");
+            currentSongId = getArguments().getString(ARG_SONG_ID, "");
             String songName = getArguments().getString(ARG_SONG_NAME, "");
             String artist = getArguments().getString(ARG_ARTIST, "");
             String coverUrl = getArguments().getString(ARG_COVER_URL, "");
@@ -137,13 +138,12 @@ public class PlayerFragment extends Fragment {
                     .into(ivPlayerCover);
             }
             
-            // 加载歌词
-            if (!songId.isEmpty()) {
-                loadLyric(songId);
+            if (!currentSongId.isEmpty()) {
+                loadLyric(currentSongId);
+                updateFavoriteIcon();
             }
         }
         
-        // 返回按钮 - 点击封面图返回
         ivPlayerCover.setOnClickListener(v -> {
             requireActivity().getSupportFragmentManager().popBackStack();
         });
@@ -166,11 +166,14 @@ public class PlayerFragment extends Fragment {
         ivPlayerNext = view.findViewById(R.id.ivPlayerNext);
         ivPlayerPlayMode = view.findViewById(R.id.ivPlayerPlayMode);
         ivPlayerPlaylist = view.findViewById(R.id.ivPlayerPlaylist);
+        ivPlayerFavorite = view.findViewById(R.id.ivPlayerFavorite);
         
-        // 设置默认歌词
+        ivPlayerFavorite.setOnClickListener(v -> {
+            toggleFavorite();
+        });
+        
         tvLyricCurrent.setText("暂无歌词");
         
-        // 播放模式按钮
         ivPlayerPlayMode.setOnClickListener(v -> {
             if (musicPlayerService != null) {
                 musicPlayerService.togglePlayMode();
@@ -193,13 +196,11 @@ public class PlayerFragment extends Fragment {
             }
         });
         
-        // 播放列表按钮（暂时无功能）
         ivPlayerPlaylist.setOnClickListener(v -> {
             showPlaylistDialog();
         });
 
 
-        // 播放/暂停按钮
         ivPlayerPlayPause.setOnClickListener(v -> {
             if (musicPlayerService != null) {
                 if (musicPlayerService.isPlaying()) {
@@ -210,21 +211,18 @@ public class PlayerFragment extends Fragment {
             }
         });
         
-        // 上一首
         ivPlayerPrev.setOnClickListener(v -> {
             if (getActivity() instanceof MainActivity) {
                 ((MainActivity) getActivity()).playPreviousSong();
             }
         });
         
-        // 下一首
         ivPlayerNext.setOnClickListener(v -> {
             if (getActivity() instanceof MainActivity) {
                 ((MainActivity) getActivity()).playNextSong();
             }
         });
         
-        // 进度条
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -477,6 +475,68 @@ public class PlayerFragment extends Fragment {
         }
     }
     
+    private void toggleFavorite() {
+        if (currentSongId == null || currentSongId.isEmpty()) {
+            Toast.makeText(getContext(), "无法获取歌曲信息", Toast.LENGTH_SHORT).show();
+            Log.e("PlayerFragment", "toggleFavorite: currentSongId 为空");
+            return;
+        }
+        
+        Log.d("PlayerFragment", "toggleFavorite: 当前歌曲ID = " + currentSongId);
+        
+        if (userDataManager.isFavorite(currentSongId)) {
+            userDataManager.removeFromFavorites(currentSongId);
+            Toast.makeText(getContext(), "已取消收藏", Toast.LENGTH_SHORT).show();
+            Log.d("PlayerFragment", "已取消收藏: " + currentSongId);
+        } else {
+            Music currentMusic = getCurrentMusic();
+            if (currentMusic != null) {
+                userDataManager.addToFavorites(currentMusic);
+                Toast.makeText(getContext(), "已添加到收藏", Toast.LENGTH_SHORT).show();
+                Log.d("PlayerFragment", "已添加收藏: " + currentSongId);
+            } else {
+                Log.e("PlayerFragment", "getCurrentMusic 返回 null");
+            }
+        }
+        
+        updateFavoriteIcon();
+    }
+    
+    private void updateFavoriteIcon() {
+        if (ivPlayerFavorite == null) {
+            Log.e("PlayerFragment", "ivPlayerFavorite 为 null");
+            return;
+        }
+        
+        if (currentSongId == null || currentSongId.isEmpty()) {
+            Log.w("PlayerFragment", "currentSongId 为空，显示空心爱心");
+            ivPlayerFavorite.setImageResource(R.drawable.ic_heart_outline);
+            return;
+        }
+        
+        boolean isFavorite = userDataManager.isFavorite(currentSongId);
+        Log.d("PlayerFragment", "歌曲ID: " + currentSongId + ", 收藏状态: " + isFavorite);
+        
+        if (isFavorite) {
+            ivPlayerFavorite.setImageResource(R.drawable.ic_heart_filled);
+        } else {
+            ivPlayerFavorite.setImageResource(R.drawable.ic_heart_outline);
+        }
+    }
+    
+    private Music getCurrentMusic() {
+        if (getActivity() instanceof MainActivity) {
+            MainActivity mainActivity = (MainActivity) getActivity();
+            int currentIndex = mainActivity.getCurrentSongIndex();
+            List<Music> playlist = mainActivity.getCurrentPlaylist();
+            
+            if (playlist != null && currentIndex >= 0 && currentIndex < playlist.size()) {
+                return playlist.get(currentIndex);
+            }
+        }
+        return null;
+    }
+    
     // 播放上一首
     private void playPreviousSong() {
         if (getActivity() instanceof MainActivity) {
@@ -567,6 +627,7 @@ public class PlayerFragment extends Fragment {
             
             if (playlist != null && currentIndex >= 0 && currentIndex < playlist.size()) {
                 final Music currentMusic = playlist.get(currentIndex);
+                currentSongId = currentMusic.getId();
                 
                 tvPlayerSongName.setText(currentMusic.getName());
                 tvPlayerArtist.setText(currentMusic.getArtist());
@@ -596,6 +657,8 @@ public class PlayerFragment extends Fragment {
                                     .transform(new CircleCrop())
                                     .into(ivPlayerCover);
                             }
+                            
+                            updateFavoriteIcon();
                         });
                     }
                     
@@ -611,6 +674,7 @@ public class PlayerFragment extends Fragment {
                                     .transform(new CircleCrop())
                                     .into(ivPlayerCover);
                             }
+                            updateFavoriteIcon();
                         });
                     }
                 });

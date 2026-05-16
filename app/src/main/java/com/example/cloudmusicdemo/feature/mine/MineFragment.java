@@ -70,11 +70,11 @@ public class MineFragment extends Fragment{
     
     private void setupClickListeners() {
         layoutFavorites.setOnClickListener(v -> {
-            Toast.makeText(getContext(), "查看我的收藏", Toast.LENGTH_SHORT).show();
+            openFavoritesFragment();
         });
         
         layoutHistory.setOnClickListener(v -> {
-            Toast.makeText(getContext(), "查看播放历史", Toast.LENGTH_SHORT).show();
+            openHistoryFragment();
         });
         
         layoutLocalMusic.setOnClickListener(v -> {
@@ -84,6 +84,40 @@ public class MineFragment extends Fragment{
         layoutSettings.setOnClickListener(v -> {
             Toast.makeText(getContext(), "打开设置", Toast.LENGTH_SHORT).show();
         });
+    }
+    
+    private void openFavoritesFragment() {
+        if (getActivity() instanceof MainActivity) {
+            MainActivity mainActivity = (MainActivity) getActivity();
+            androidx.fragment.app.FragmentTransaction transaction = mainActivity.getSupportFragmentManager().beginTransaction();
+            
+            com.example.cloudmusicdemo.feature.favorites.FavoritesFragment favoritesFragment = 
+                new com.example.cloudmusicdemo.feature.favorites.FavoritesFragment();
+            
+            transaction.add(R.id.fragmentContainer, favoritesFragment)
+                      .addToBackStack(null)
+                      .commit();
+            
+            mainActivity.hidePlayControlBar();
+            mainActivity.getBottomNavigationView().setVisibility(View.GONE);
+        }
+    }
+    
+    private void openHistoryFragment() {
+        if (getActivity() instanceof MainActivity) {
+            MainActivity mainActivity = (MainActivity) getActivity();
+            androidx.fragment.app.FragmentTransaction transaction = mainActivity.getSupportFragmentManager().beginTransaction();
+            
+            com.example.cloudmusicdemo.feature.history.HistoryFragment historyFragment = 
+                new com.example.cloudmusicdemo.feature.history.HistoryFragment();
+            
+            transaction.add(R.id.fragmentContainer, historyFragment)
+                      .addToBackStack(null)
+                      .commit();
+            
+            mainActivity.hidePlayControlBar();
+            mainActivity.getBottomNavigationView().setVisibility(View.GONE);
+        }
     }
     
     public void refreshStatistics() {

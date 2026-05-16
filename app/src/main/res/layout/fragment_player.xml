@@ -132,6 +132,25 @@
             android:orientation="vertical"
             android:layout_marginBottom="24dp">
 
+            <!-- 收藏按钮（进度条上方左侧） -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp">
+
+                <ImageView
+                    android:id="@+id/ivPlayerFavorite"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:src="@drawable/ic_heart_outline"
+                    android:padding="8dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:layout_gravity="start|center_vertical" />
+
+            </FrameLayout>
+
             <!-- 进度条 -->
             <SeekBar
                 android:id="@+id/seekBar"

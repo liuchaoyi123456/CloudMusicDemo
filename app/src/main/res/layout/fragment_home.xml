@@ -27,24 +27,13 @@
             android:textSize="20sp"
             android:textStyle="bold" />
 
-        <!-- Deleted:<ImageView -->
-        <!-- Deleted:    android:id="@+id/ivVoiceAssistant" -->
-        <!-- Deleted:    android:layout_width="40dp" -->
-        <!-- Deleted:    android:layout_height="40dp" -->
-        <!-- Deleted:    android:src="@android:drawable/ic_btn_speak_now" -->
-        <!-- Deleted:    android:contentDescription="语音助手" -->
-        <!-- Deleted:    android:padding="6dp" -->
-        <!-- Deleted:    android:clickable="true" -->
-        <!-- Deleted:    android:focusable="true" -->
-        <!-- Deleted:    android:background="?attr/selectableItemBackgroundBorderless" -->
-        <!-- Deleted:    android:tint="#FFFFFF" /> -->
     </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#F5F5F5">
+        android:background="#FFF0F2">
     </androidx.recyclerview.widget.RecyclerView>
 
 </LinearLayout>
